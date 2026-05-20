@@ -9,16 +9,20 @@ from io import BytesIO
 # ==========================================
 st.set_page_config(page_title="Quản lý KHTN - TH&THCS Nam Thượng", layout="wide")
 
-# 1. CSDL Người dùng (Tài khoản)
+# 1. CSDL Người dùng (Hỗ trợ đa vai trò bằng danh sách List)
 if 'users' not in st.session_state:
     st.session_state.users = pd.DataFrame({
         'Tài khoản': ['admin', 'ht', 'totruong', 'gv01'],
         'Mật khẩu': ['123', '123', '123', '123'],
         'Họ tên': ['Quản trị viên (PHT)', 'Nguyễn Văn A (Hiệu trưởng)', 'Trần Thị B (Tổ trưởng)', 'Lê Văn C (Giáo viên)'],
-        'Vai trò': ['Quản trị viên', 'Hiệu trưởng', 'Tổ trưởng chuyên môn', 'Giáo viên bộ môn']
+        'Vai trò': [
+            ['Quản trị viên', 'Phó Hiệu trưởng', 'Giáo viên bộ môn'], # Admin kiêm PHT và đi dạy
+            ['Hiệu trưởng', 'Giáo viên bộ môn'],                      # HT kiêm đi dạy
+            ['Tổ trưởng chuyên môn', 'Giáo viên bộ môn'],             # Tổ trưởng kiêm đi dạy
+            ['Giáo viên bộ môn']                                      # Chỉ là giáo viên
+        ]
     })
 
-# 2. CSDL Thiết bị/Hóa chất
 if 'chemicals' not in st.session_state:
     st.session_state.chemicals = pd.DataFrame({
         'Mã vật tư': ['HC01', 'HC02', 'VL01', 'SH01'],
@@ -28,22 +32,19 @@ if 'chemicals' not in st.session_state:
         'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt']
     })
 
-# 3. CSDL Đăng ký phòng/tiết học
 if 'bookings' not in st.session_state:
     st.session_state.bookings = pd.DataFrame(columns=['Người đăng ký', 'Ngày', 'Tiết', 'Lớp', 'Môn', 'Thiết bị'])
 
-# 4. CSDL Hồ sơ đánh giá
 if 'evaluations' not in st.session_state:
     st.session_state.evaluations = []
 
-# Trạng thái đăng nhập
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 
 # ==========================================
-# GIAO DIỆN ĐĂNG NHẬP (LOGIN)
+# GIAO DIỆN ĐĂNG NHẬP
 # ==========================================
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #1E88E5;'>HỆ THỐNG QUẢN LÝ KHTN</h1>", unsafe_allow_html=True)
@@ -58,6 +59,7 @@ if not st.session_state.logged_in:
             submit_login = st.form_submit_button("Đăng nhập", use_container_width=True)
             
             if submit_login:
+                # Tìm user khớp tài khoản và mật khẩu
                 user_match = st.session_state.users[(st.session_state.users['Tài khoản'] == username) & (st.session_state.users['Mật khẩu'] == password)]
                 if not user_match.empty:
                     st.session_state.logged_in = True
@@ -65,23 +67,33 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("Sai tài khoản hoặc mật khẩu!")
-    st.stop() # Dừng chạy các code bên dưới nếu chưa đăng nhập
+    st.stop()
 
 # ==========================================
-# THANH ĐIỀU HƯỚNG BÊN TRÁI (SIDEBAR)
+# SIDEBAR: THANH ĐIỀU HƯỚNG & CHUYỂN ĐỔI VAI TRÒ
 # ==========================================
 current_user = st.session_state.current_user
-role = current_user['Vai trò']
+user_roles = current_user['Vai trò'] # Lấy danh sách các vai trò của tài khoản này
 
 st.sidebar.title("TH&THCS Nam Thượng")
-st.sidebar.success(f"👤 Chào, {current_user['Họ tên']}\n\n🏷️ Vai trò: {role}")
+st.sidebar.success(f"👤 Chào, {current_user['Họ tên']}")
 
-# Phân quyền hiển thị Menu
-menu_options = ["Trang chủ & Cảnh báo", "Đăng ký thiết bị", "Đánh giá chuyên môn", "Xuất báo cáo (.docx)"]
-if role == "Quản trị viên":
+# Chức năng chuyển đổi vai trò (Sẽ lấy vai trò đang chọn làm gốc để hiển thị chức năng)
+st.sidebar.markdown("---")
+active_role = st.sidebar.selectbox("🔄 Bạn đang làm việc với tư cách là:", user_roles)
+st.sidebar.markdown("---")
+
+# Phân quyền hiển thị Menu dựa trên vai trò ĐANG ĐƯỢC CHỌN (active_role)
+menu_options = ["Trang chủ & Cảnh báo", "Đăng ký thiết bị"]
+
+if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
+    menu_options.append("Đánh giá chuyên môn")
+    menu_options.append("Xuất báo cáo (.docx)")
+
+if active_role == "Quản trị viên":
     menu_options.insert(0, "Quản lý Hệ thống (Admin)")
 
-menu = st.sidebar.radio("Chức năng chính", menu_options)
+menu = st.sidebar.radio("📌 Chọn chức năng:", menu_options)
 
 if st.sidebar.button("Đăng xuất"):
     st.session_state.logged_in = False
@@ -95,9 +107,12 @@ if menu == "Quản lý Hệ thống (Admin)":
     st.header("⚙️ Quản lý Hệ thống & Cấp tài khoản")
     
     st.subheader("1. Danh sách tài khoản hiện tại")
-    st.dataframe(st.session_state.users, use_container_width=True)
+    # Hiển thị list vai trò dưới dạng text có dấu phẩy cho dễ nhìn
+    df_display = st.session_state.users.copy()
+    df_display['Vai trò'] = df_display['Vai trò'].apply(lambda x: ", ".join(x))
+    st.dataframe(df_display, use_container_width=True)
     
-    st.subheader("2. Cấp tài khoản mới")
+    st.subheader("2. Cấp tài khoản mới (Hỗ trợ kiêm nhiệm)")
     with st.form("add_user_form"):
         col1, col2 = st.columns(2)
         with col1:
@@ -105,16 +120,18 @@ if menu == "Quản lý Hệ thống (Admin)":
             new_pwd = st.text_input("Mật khẩu")
         with col2:
             new_name = st.text_input("Họ và tên người dùng")
-            new_role = st.selectbox("Vai trò", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"])
+            # Dùng st.multiselect để cho phép chọn nhiều vai trò cùng lúc
+            new_roles = st.multiselect("Chọn các vai trò (Có thể chọn nhiều)", 
+                                       ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"])
         
         if st.form_submit_button("Tạo tài khoản"):
-            if new_acc and new_pwd and new_name:
-                new_row = pd.DataFrame([{'Tài khoản': new_acc, 'Mật khẩu': new_pwd, 'Họ tên': new_name, 'Vai trò': new_role}])
+            if new_acc and new_pwd and new_name and len(new_roles) > 0:
+                new_row = pd.DataFrame([{'Tài khoản': new_acc, 'Mật khẩu': new_pwd, 'Họ tên': new_name, 'Vai trò': new_roles}])
                 st.session_state.users = pd.concat([st.session_state.users, new_row], ignore_index=True)
                 st.success(f"Đã cấp tài khoản thành công cho: {new_name}")
                 st.rerun()
             else:
-                st.warning("Vui lòng điền đủ thông tin!")
+                st.warning("Vui lòng điền đủ thông tin và chọn ít nhất 1 vai trò!")
 
 # ==========================================
 # MODULE: TRANG CHỦ & QUẢN LÝ VẬT TƯ
@@ -122,7 +139,6 @@ if menu == "Quản lý Hệ thống (Admin)":
 elif menu == "Trang chủ & Cảnh báo":
     st.header("📊 Bảng điều khiển (Dashboard)")
     
-    # Cảnh báo hóa chất
     today = datetime.date.today()
     df_exp = st.session_state.chemicals.dropna(subset=['Hạn sử dụng'])
     df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
@@ -134,8 +150,8 @@ elif menu == "Trang chủ & Cảnh báo":
     st.subheader("📦 Danh mục vật tư hiện có")
     st.dataframe(st.session_state.chemicals, use_container_width=True)
     
-    # Tính năng bổ sung thiết bị (Chỉ Admin và Tổ chuyên môn)
-    if role in ["Quản trị viên", "Tổ trưởng chuyên môn"]:
+    # Chỉ Quản trị viên và Tổ trưởng mới được thêm vật tư
+    if active_role in ["Quản trị viên", "Tổ trưởng chuyên môn"]:
         with st.expander("➕ Bổ sung thiết bị/hóa chất mới vào kho"):
             with st.form("add_chem_form"):
                 c1, c2, c3 = st.columns(3)
@@ -159,7 +175,6 @@ elif menu == "Trang chủ & Cảnh báo":
 elif menu == "Đăng ký thiết bị":
     st.header("📝 Đăng ký sử dụng phòng bộ môn")
     
-    # Bảng hiển thị các lịch đã đăng ký
     st.subheader("Lịch đăng ký của toàn trường")
     if not st.session_state.bookings.empty:
         st.dataframe(st.session_state.bookings, use_container_width=True)
@@ -192,18 +207,16 @@ elif menu == "Đăng ký thiết bị":
 elif menu == "Đánh giá chuyên môn":
     st.header("📋 Đánh giá năng lực tổ chức thực hành")
     
-    # 1. Chọn giáo viên để đánh giá
-    list_gv = st.session_state.users[st.session_state.users['Vai trò'].isin(['Giáo viên bộ môn', 'Tổ trưởng chuyên môn', 'Phó Hiệu trưởng'])]['Họ tên'].tolist()
-    target_gv = st.selectbox("1. Chọn Giáo viên để đánh giá:", ["-- Chọn giáo viên --"] + list_gv)
+    # Chỉ hiện danh sách các giáo viên có trong trường (loại trừ tài khoản admin hệ thống nếu cần)
+    list_gv = st.session_state.users['Họ tên'].tolist()
+    target_gv = st.selectbox("1. Chọn Giáo viên để đánh giá:", ["-- Chọn người được đánh giá --"] + list_gv)
     
-    if target_gv != "-- Chọn giáo viên --":
-        # Lọc ra các tiết học mà giáo viên này đã đăng ký
+    if target_gv != "-- Chọn người được đánh giá --":
         gv_bookings = st.session_state.bookings[st.session_state.bookings['Người đăng ký'] == target_gv]
         
         if gv_bookings.empty:
-            st.warning(f"Giáo viên {target_gv} chưa đăng ký tiết dạy thực hành nào trên hệ thống.")
+            st.warning(f"{target_gv} chưa đăng ký tiết dạy thực hành nào trên hệ thống.")
         else:
-            # 2. Chọn tiết học cụ thể
             booking_options = []
             for idx, row in gv_bookings.iterrows():
                 booking_options.append(f"Ngày {row['Ngày']} - Tiết {row['Tiết']} - Lớp {row['Lớp']} - Môn {row['Môn']}")
@@ -231,7 +244,7 @@ elif menu == "Đánh giá chuyên môn":
                     "Người được đánh giá": target_gv,
                     "Tiết dạy": target_tiet,
                     "Người đánh giá": current_user['Họ tên'],
-                    "Chức vụ người đánh giá": role,
+                    "Chức vụ người đánh giá": active_role, # Lấy vai trò ĐANG đóng vai để đánh giá (PHT/Tổ trưởng...)
                     "Tổng điểm": total,
                     "Xếp loại": rank,
                     "Nhận xét": comment,
@@ -253,7 +266,7 @@ elif menu == "Xuất báo cáo (.docx)":
         st.dataframe(df_evals, use_container_width=True)
         
         selected_idx = st.selectbox("Chọn hồ sơ cần xuất báo cáo", range(len(st.session_state.evaluations)), 
-                                    format_func=lambda x: f"Giáo viên: {st.session_state.evaluations[x]['Người được đánh giá']} ({st.session_state.evaluations[x]['Tiết dạy']})")
+                                    format_func=lambda x: f"Đánh giá: {st.session_state.evaluations[x]['Người được đánh giá']} ({st.session_state.evaluations[x]['Tiết dạy']})")
         
         target_record = st.session_state.evaluations[selected_idx]
         
