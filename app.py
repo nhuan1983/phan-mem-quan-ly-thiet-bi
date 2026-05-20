@@ -129,24 +129,61 @@ if menu == "Quản lý Hệ thống (Admin)":
                 
     st.markdown("---")
     st.subheader("3. 📥 Nhập hàng loạt tài khoản từ file Excel")
-    st.info("💡 Hướng dẫn: File Excel (đuôi .xlsx) cần có dòng tiêu đề với 4 cột chính xác là: **Tài khoản**, **Mật khẩu**, **Họ tên**, **Vai trò**. Nếu 1 người có nhiều vai trò, hãy viết cách nhau bằng dấu phẩy (VD: Giáo viên bộ môn, Tổ trưởng chuyên môn).")
-    
     uploaded_users = st.file_uploader("Kéo thả hoặc chọn file Excel tài khoản", type=['xlsx', 'xls'], key="upload_users")
     if uploaded_users is not None:
         if st.button("Tiến hành nhập dữ liệu tài khoản"):
             try:
                 df_new_users = pd.read_excel(uploaded_users)
-                # Chuyển đổi cột Vai trò từ chuỗi (string) sang danh sách (list) để hệ thống hiểu
                 df_new_users['Vai trò'] = df_new_users['Vai trò'].astype(str).apply(lambda x: [r.strip() for r in x.split(',')])
-                # Đảm bảo các cột text là dạng chuỗi
                 df_new_users['Tài khoản'] = df_new_users['Tài khoản'].astype(str)
                 df_new_users['Mật khẩu'] = df_new_users['Mật khẩu'].astype(str)
-                
                 st.session_state.users = pd.concat([st.session_state.users, df_new_users], ignore_index=True)
-                st.success(f"✅ Đã nhập thành công {len(df_new_users)} tài khoản vào hệ thống!")
+                st.success(f"✅ Đã nhập thành công {len(df_new_users)} tài khoản!")
                 st.rerun()
             except Exception as e:
-                st.error(f"❌ Lỗi khi đọc file: {e}. Vui lòng kiểm tra lại cấu trúc các cột trong Excel.")
+                st.error(f"❌ Lỗi: {e}")
+
+    # --- TÍNH NĂNG MỚI BỔ SUNG: SỬA/XÓA TÀI KHOẢN ---
+    st.markdown("---")
+    st.subheader("4. ✏️ Sửa hoặc ❌ Xóa tài khoản người dùng")
+    user_list = st.session_state.users['Tài khoản'].tolist()
+    selected_user = st.selectbox("Chọn tài khoản cần xử lý:", ["-- Chọn tài khoản --"] + user_list)
+    
+    if selected_user != "-- Chọn tài khoản --":
+        user_data = st.session_state.users[st.session_state.users['Tài khoản'] == selected_user].iloc[0]
+        
+        with st.form("edit_delete_user_form"):
+            st.info(f"Đang thiết lập cho tài khoản: {selected_user}")
+            edit_name = st.text_input("Họ và tên người dùng", value=user_data['Họ tên'])
+            edit_pwd = st.text_input("Mật khẩu truy cập", value=user_data['Mật khẩu'])
+            
+            current_roles = user_data['Vai trò']
+            if not isinstance(current_roles, list):
+                current_roles = [r.strip() for r in str(current_roles).split(',')]
+                
+            edit_roles = st.multiselect("Phân quyền vai trò", 
+                                       ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"],
+                                       default=current_roles)
+            
+            btn_col1, btn_col2 = st.columns(2)
+            update_user_btn = btn_col1.form_submit_button("💾 Lưu thay đổi", use_container_width=True)
+            delete_user_btn = btn_col2.form_submit_button("❌ XÓA TÀI KHOẢN", use_container_width=True)
+            
+            if update_user_btn:
+                idx = st.session_state.users[st.session_state.users['Tài khoản'] == selected_user].index[0]
+                st.session_state.users.at[idx, 'Họ tên'] = edit_name
+                st.session_state.users.at[idx, 'Mật khẩu'] = edit_pwd
+                st.session_state.users.at[idx, 'Vai trò'] = edit_roles
+                st.success(f"Đã cập nhật thông tin tài khoản [{selected_user}]!")
+                st.rerun()
+                
+            if delete_user_btn:
+                if selected_user == current_user['Tài khoản']:
+                    st.error("Hệ thống từ chối: Bạn không thể tự xóa tài khoản chính mình đang đăng nhập!")
+                else:
+                    st.session_state.users = st.session_state.users[st.session_state.users['Tài khoản'] != selected_user].reset_index(drop=True)
+                    st.success(f"Đã xóa hoàn toàn tài khoản [{selected_user}] khỏi hệ thống!")
+                    st.rerun()
 
 # ==========================================
 # MODULE: TRANG CHỦ & CẢNH BÁO
@@ -170,7 +207,7 @@ elif menu == "Trang chủ & Cảnh báo":
         st.success("Tất cả hóa chất và tiêu bản đều trong thời hạn sử dụng an toàn.")
 
 # ==========================================
-# MODULE: QUẢN LÝ KHO (THÊM THIẾT BỊ)
+# MODULE: QUẢN LÝ KHO (VẬT TƯ)
 # ==========================================
 elif menu == "Quản lý Kho (Vật tư)":
     st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
@@ -202,24 +239,59 @@ elif menu == "Quản lý Kho (Vật tư)":
                     
         st.markdown("---")
         st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
-        st.info("💡 Hướng dẫn: File Excel cần có 5 cột tiêu đề chính xác là: **Mã vật tư**, **Tên vật tư**, **Phân môn**, **Hạn sử dụng**, **Tình trạng**. Cột Hạn sử dụng có thể để trống với các thiết bị Lý/Sinh.")
-        
         uploaded_chem = st.file_uploader("Kéo thả hoặc chọn file Excel danh mục thiết bị", type=['xlsx', 'xls'], key="upload_chem")
         if uploaded_chem is not None:
             if st.button("Tiến hành nhập dữ liệu vật tư"):
                 try:
                     df_new_chem = pd.read_excel(uploaded_chem)
-                    # Chuyển đổi định dạng ngày tháng nếu có
                     if 'Hạn sử dụng' in df_new_chem.columns:
                         df_new_chem['Hạn sử dụng'] = pd.to_datetime(df_new_chem['Hạn sử dụng'], errors='coerce').dt.date
-                    
                     st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new_chem], ignore_index=True)
                     st.success(f"✅ Đã nhập thành công {len(df_new_chem)} thiết bị/vật tư vào kho!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Lỗi khi đọc file: {e}. Vui lòng kiểm tra lại cấu trúc các cột trong Excel.")
+                    st.error(f"❌ Lỗi khi đọc file: {e}")
+
+        # --- TÍNH NĂNG MỚI BỔ SUNG: SỬA/XÓA THIẾT BỊ VẬT TƯ ---
+        st.markdown("---")
+        st.subheader("3. ✏️ Sửa hoặc ❌ Xóa vật tư/thiết bị trong kho")
+        item_list = st.session_state.chemicals['Mã vật tư'].tolist()
+        selected_item_code = st.selectbox("Chọn Mã vật tư cần xử lý:", ["-- Chọn vật tư --"] + item_list)
+        
+        if selected_item_code != "-- Chọn vật tư --":
+            item_data = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] == selected_item_code].iloc[0]
+            
+            with st.form("edit_delete_item_form"):
+                st.info(f"Đang thiết lập cho mã vật tư: {selected_item_code}")
+                edit_ten = st.text_input("Tên vật tư thiết bị", value=item_data['Tên vật tư'])
+                edit_mon = st.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"], 
+                                        index=["Vật lý", "Hóa học", "Sinh học"].index(item_data['Phân môn']))
+                
+                default_date = item_data['Hạn sử dụng'] if pd.notnull(item_data['Hạn sử dụng']) else None
+                edit_hsd = st.date_input("Hạn sử dụng", value=default_date)
+                
+                edit_tt = st.selectbox("Tình trạng thiết bị", ["Tốt", "Cần sửa chữa", "Đang đặt mua"], 
+                                       index=["Tốt", "Cần sửa chữa", "Đang đặt mua"].index(item_data['Tình trạng']))
+                
+                ic_col1, ic_col2 = st.columns(2)
+                update_item_btn = ic_col1.form_submit_button("💾 Lưu thay đổi thiết bị", use_container_width=True)
+                delete_item_btn = ic_col2.form_submit_button("❌ XÓA THIẾT BỊ NÀY", use_container_width=True)
+                
+                if update_item_btn:
+                    idx = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] == selected_item_code].index[0]
+                    st.session_state.chemicals.at[idx, 'Tên vật tư'] = edit_ten
+                    st.session_state.chemicals.at[idx, 'Phân môn'] = edit_mon
+                    st.session_state.chemicals.at[idx, 'Hạn sử dụng'] = edit_hsd
+                    st.session_state.chemicals.at[idx, 'Tình trạng'] = edit_tt
+                    st.success(f"Đã cập nhật thành công thiết bị có mã [{selected_item_code}]!")
+                    st.rerun()
+                    
+                if delete_item_btn:
+                    st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
+                    st.success(f"Đã xóa hoàn toàn thiết bị mã [{selected_item_code}] khỏi kho dữ liệu!")
+                    st.rerun()
     else:
-        st.info("Chỉ Quản trị viên và Tổ chuyên môn mới có quyền bổ sung thiết bị mới.")
+        st.info("Chỉ Ban giám hiệu, Quản trị viên và Tổ chuyên môn mới có quyền can thiệp dữ liệu kho.")
 
 # ==========================================
 # MODULE: ĐĂNG KÝ THIẾT BỊ
@@ -254,7 +326,7 @@ elif menu == "Đăng ký thiết bị":
                 st.warning("Vui lòng nhập tên Lớp!")
 
 # ==========================================
-# MODULE: ĐÁNH GIÁ CHUYÊN MÔN
+# MODULE: ĐĂNG KÝ ĐÁNH GIÁ CHUYÊN MÔN
 # ==========================================
 elif menu == "Đánh giá chuyên môn":
     st.header("📋 Đánh giá năng lực tổ chức thực hành")
