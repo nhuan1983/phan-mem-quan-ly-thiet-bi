@@ -15,9 +15,7 @@ sh = None
 if "gspread_creds" in st.secrets and "spreadsheet_key" in st.secrets:
     try:
         import gspread
-        # Khởi tạo kết nối bằng tài khoản dịch vụ
         creds_dict = dict(st.secrets["gspread_creds"])
-        # Xử lý ký tự xuống dòng của private_key nếu bị lỗi định dạng
         if "private_key" in creds_dict:
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
             
@@ -36,7 +34,6 @@ def load_data(sheet_name, default_df):
             if not records:
                 return default_df
             df = pd.DataFrame(records)
-            # Khôi phục cấu trúc mảng vai trò đối với bảng users
             if sheet_name == 'users' and 'Vai trò' in df.columns:
                 df['Vai trò'] = df['Vai trò'].apply(lambda x: [r.strip() for r in str(x).split(',')])
             return df
@@ -54,11 +51,9 @@ def save_data(sheet_name, df_to_save):
             
             worksheet.clear()
             df_copy = df_to_save.copy()
-            # Chuyển list vai trò thành chuỗi văn bản trước khi lưu lên trang tính
             if sheet_name == 'users' and 'Vai trò' in df_copy.columns:
                 df_copy['Vai trò'] = df_copy['Vai trò'].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
             
-            # Chuyển các định dạng ngày tháng thành chuỗi để lưu trữ an toàn
             for col in df_copy.columns:
                 if df_copy[col].dtype == 'object':
                     df_copy[col] = df_copy[col].astype(str)
@@ -76,7 +71,6 @@ df_school_db = load_data('school_info', default_school)
 if 'school_info' not in st.session_state:
     st.session_state.school_info = df_school_db.iloc[0].to_dict()
 
-# Khởi tạo tiêu đề trang động theo thông tin trường học
 st.set_page_config(page_title=f"Quản lý KHTN - {st.session_state.school_info['ten_truong']}", layout="wide")
 
 # 2. Danh sách tài khoản người dùng
@@ -89,11 +83,12 @@ default_users = pd.DataFrame({
 if 'users' not in st.session_state:
     st.session_state.users = load_data('users', default_users)
 
-# 3. Danh mục thiết bị vật tư
+# 3. Danh mục thiết bị vật tư (ĐÃ BỔ SUNG CỘT SỐ LƯỢNG)
 default_chem = pd.DataFrame({
     'Mã vật tư': ['HC01', 'HC02', 'VL01', 'SH01'],
     'Tên vật tư': ['Axit Sunfuric (H2SO4)', 'Natri Hidroxit (NaOH)', 'Bộ Khúc xạ ánh sáng', 'Tiêu bản tế bào'],
     'Phân môn': ['Hóa học', 'Hóa học', 'Vật lý', 'Sinh học'],
+    'Số lượng': [5, 10, 3, 20],
     'Hạn sử dụng': ['2026-06-15', '2026-04-10', 'None', '2027-01-01'],
     'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt']
 })
@@ -109,7 +104,6 @@ if 'evaluations' not in st.session_state:
     df_eval_loaded = load_data('evaluations', pd.DataFrame())
     st.session_state.evaluations = df_eval_loaded.to_dict('records') if not df_eval_loaded.empty else []
 
-# Khởi tạo trạng thái phiên làm việc
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'current_user' not in st.session_state:
@@ -141,7 +135,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ==========================================
-# THANH ĐIỀU HƯỚNG BÊN TRÁI & PHÂN QUYỀN VAI TRÒ
+# SIDEBAR NAVIGATION
 # ==========================================
 current_user = st.session_state.current_user
 user_roles = current_user['Vai trò']
@@ -234,7 +228,7 @@ if menu == "Quản lý Hệ thống (Admin)":
                 df_new_users['Mật khẩu'] = df_new_users['Mật khẩu'].astype(str)
                 st.session_state.users = pd.concat([st.session_state.users, df_new_users], ignore_index=True)
                 save_data('users', st.session_state.users)
-                st.success(f"✅ Đã nhập thành công {len(df_new_users)} tài khoản!")
+                st.success("✅ Đã nhập thành công tài khoản!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Lỗi: {e}")
@@ -279,7 +273,6 @@ elif menu == "Trang chủ & Cảnh báo":
     col2.metric("Số lượt đăng ký mượn phòng", len(st.session_state.bookings))
     
     today = datetime.date.today()
-    # Chuẩn hóa định dạng ngày để so sánh cảnh báo chính xác
     df_chem_check = st.session_state.chemicals.copy()
     df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], errors='coerce').dt.date
     df_exp = df_chem_check.dropna(subset=['Hạn sử dụng'])
@@ -293,7 +286,7 @@ elif menu == "Trang chủ & Cảnh báo":
         st.success("Tất cả hóa chất và tiêu bản đều trong thời hạn sử dụng an toàn.")
 
 # ==========================================
-# MODULE: QUẢN LÝ KHO (VẬT TƯ)
+# MODULE: QUẢN LÝ KHO (ĐÃ CẬP NHẬT SỐ LƯỢNG)
 # ==========================================
 elif menu == "Quản lý Kho (Vật tư)":
     st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
@@ -303,29 +296,40 @@ elif menu == "Quản lý Kho (Vật tư)":
         st.markdown("---")
         st.subheader("1. ➕ Bổ sung vật tư mới (Thủ công)")
         with st.form("add_chem_form"):
-            c1, c2, c3 = st.columns(3)
+            c1, c2, c3, c4 = st.columns(4)
             ma_vt = c1.text_input("Mã vật tư (VD: VL05)")
             ten_vt = c2.text_input("Tên vật tư")
             phan_mon = c3.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"])
-            c4, c5 = st.columns(2)
-            han_su_dung = c4.date_input("Hạn sử dụng (Nếu có)", value=None)
-            tinh_trang = c5.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
+            # Thêm trường nhập Số lượng khi tạo thủ công
+            so_luong = c4.number_input("Số lượng", min_value=1, value=1)
+            
+            c5, c6 = st.columns(2)
+            han_su_dung = c5.date_input("Hạn sử dụng (Nếu có)", value=None)
+            tinh_trang = c6.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
             
             if st.form_submit_button("Lưu vào kho"):
                 if ma_vt and ten_vt:
-                    new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Hạn sử dụng': str(han_su_dung), 'Tình trạng': tinh_trang}])
+                    new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Hạn sử dụng': str(han_su_dung), 'Tình trạng': tinh_trang}])
                     st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
                     save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã bổ sung thiết bị vào cơ sở dữ liệu!")
+                    st.success("Đã bổ sung thiết bị vào cơ sở dữ liệu kho!")
                     st.rerun()
 
         st.markdown("---")
         st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
-        df_mau_vt = pd.DataFrame({'Mã vật tư': ['VL02'], 'Tên vật tư': ['Ampe kế'], 'Phân môn': ['Vật lý'], 'Hạn sử dụng': [''], 'Tình trạng': ['Tốt']})
+        # File mẫu Excel cập nhật bổ sung thêm cột "Số lượng"
+        df_mau_vt = pd.DataFrame({
+            'Mã vật tư': ['VL02', 'HC03'], 
+            'Tên vật tư': ['Ampe kế', 'Dung dịch HCl 0.1M'], 
+            'Phân môn': ['Vật lý', 'Hóa học'], 
+            'Số lượng': [15, 5], 
+            'Hạn sử dụng': ['', '2027-12-31'], 
+            'Tình trạng': ['Tốt', 'Tốt']
+        })
         output_vt = BytesIO()
         with pd.ExcelWriter(output_vt, engine='openpyxl') as writer:
             df_mau_vt.to_excel(writer, index=False)
-        st.download_button(label="⬇️ Tải file Excel mẫu (Thiết bị/Vật tư)", data=output_vt.getvalue(), file_name="Mau_Nhap_Vat_Tu.xlsx")
+        st.download_button(label="⬇️ Tải file Excel mẫu chuẩn (Có cột Số lượng)", data=output_vt.getvalue(), file_name="Mau_Nhap_Vat_Tu.xlsx")
         
         uploaded_chem = st.file_uploader("Chọn file Excel thiết bị đã điền", type=['xlsx', 'xls'])
         if uploaded_chem is not None:
@@ -342,12 +346,18 @@ elif menu == "Quản lý Kho (Vật tư)":
         st.markdown("---")
         st.subheader("3. ✏️ Sửa hoặc ❌ Xóa thiết bị")
         item_list = st.session_state.chemicals['Mã vật tư'].tolist()
-        selected_item_code = st.selectbox("Chọn Mã vật tư:", ["-- Chọn vật tư --"] + item_list)
+        selected_item_code = st.selectbox("Chọn Mã vật tư để hiệu chỉnh:", ["-- Chọn vật tư --"] + item_list)
         if selected_item_code != "-- Chọn vật tư --":
             item_data = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] == selected_item_code].iloc[0]
             with st.form("edit_delete_item_form"):
                 edit_ten = st.text_input("Tên vật tư thiết bị", value=item_data['Tên vật tư'])
-                edit_mon = st.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"], index=["Vật lý", "Hóa học", "Sinh học"].index(item_data['Phân môn']))
+                
+                col_e1, col_e2 = st.columns(2)
+                edit_mon = col_e1.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"], index=["Vật lý", "Hóa học", "Sinh học"].index(item_data['Phân môn']))
+                # Thêm trường sửa đổi số lượng hiện có
+                default_sl = int(item_data['Số lượng']) if 'Số lượng' in item_data and pd.notnull(item_data['Số lượng']) else 1
+                edit_sl = col_e2.number_input("Số lượng hiện có", min_value=0, value=default_sl)
+                
                 edit_tt = st.selectbox("Tình trạng thiết bị", ["Tốt", "Cần sửa chữa", "Đang đặt mua"], index=["Tốt", "Cần sửa chữa", "Đang đặt mua"].index(item_data['Tình trạng']))
                 
                 ic_col1, ic_col2 = st.columns(2)
@@ -355,15 +365,18 @@ elif menu == "Quản lý Kho (Vật tư)":
                     idx = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] == selected_item_code].index[0]
                     st.session_state.chemicals.at[idx, 'Tên vật tư'] = edit_ten
                     st.session_state.chemicals.at[idx, 'Phân môn'] = edit_mon
+                    st.session_state.chemicals.at[idx, 'Số lượng'] = int(edit_sl)
                     st.session_state.chemicals.at[idx, 'Tình trạng'] = edit_tt
                     save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã lưu cập nhật thiết bị!")
+                    st.success("Đã cập nhật số lượng và thông tin thiết bị thành công!")
                     st.rerun()
                 if ic_col2.form_submit_button("❌ XÓA THIẾT BỊ NÀY"):
                     st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
                     save_data('chemicals', st.session_state.chemicals)
                     st.success("Đã xóa thiết bị!")
                     st.rerun()
+    else:
+        st.info("Chỉ Ban giám hiệu, Quản trị viên và Tổ chuyên môn mới có quyền can thiệp dữ liệu kho.")
 
 # ==========================================
 # MODULE: ĐĂNG KÝ THIẾT BỊ
@@ -460,7 +473,7 @@ elif menu == "Xuất báo cáo (.docx)":
             doc.add_heading('Thông tin tiết dạy thực nghiệm', level=1)
             doc.add_paragraph(f"- Giáo viên bộ môn giảng dạy: {data['Người được đánh giá']}")
             doc.add_paragraph(f"- Chi tiết lịch học: {data['Tiết dạy']}")
-            doc.add_heading('Kết quả kiểm tra thi đua', level=1)
+            doc.add_heading('Kết quả', level=1)
             doc.add_paragraph(f"- Tổng số điểm kiểm định: {data['Tổng điểm']}/100 điểm")
             doc.add_paragraph(f"- Xếp loại chung chuyên môn: {data['Xếp loại']}")
             doc.add_heading('Nhận xét kiến nghị cụ thể', level=1)
