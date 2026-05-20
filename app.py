@@ -130,4 +130,4 @@ if menu == "Quản lý Hệ thống (Admin)":
     st.subheader("2. Danh sách tài khoản hiện tại")
     df_display = st.session_state.users.copy()
     df_display['Vai trò'] = df_display['Vai trò'].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
-    st.dataframe(df_display, use_
+    st.dataframe(df_display, use_container_width=True)
