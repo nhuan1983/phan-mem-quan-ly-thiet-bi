@@ -7,7 +7,6 @@ from io import BytesIO
 # ==========================================
 # CẤU HÌNH TRANG & KHỞI TẠO CƠ SỞ DỮ LIỆU
 # ==========================================
-# Khởi tạo thông tin trường học (Mặc định)
 if 'school_info' not in st.session_state:
     st.session_state.school_info = {
         'ten_truong': 'TH&THCS Nam Thượng',
@@ -39,8 +38,9 @@ if 'chemicals' not in st.session_state:
         'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt']
     })
 
+# Cập nhật cấu trúc bảng đăng ký: Bổ sung thêm cột 'Buổi'
 if 'bookings' not in st.session_state:
-    st.session_state.bookings = pd.DataFrame(columns=['Người đăng ký', 'Ngày', 'Tiết', 'Lớp', 'Môn', 'Thiết bị'])
+    st.session_state.bookings = pd.DataFrame(columns=['Người đăng ký', 'Ngày', 'Buổi', 'Tiết', 'Lớp', 'Môn', 'Thiết bị'])
 
 if 'evaluations' not in st.session_state:
     st.session_state.evaluations = []
@@ -110,9 +110,7 @@ if st.sidebar.button("Đăng xuất"):
 if menu == "Quản lý Hệ thống (Admin)":
     st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
     
-    # --- TÍNH NĂNG MỚI: CẤU HÌNH TRƯỜNG HỌC ---
-    st.subheader("1. 🏫 Cấu hình thông tin Trường học (White-label)")
-    st.info("Chỉnh sửa thông tin tại đây sẽ thay đổi toàn bộ tên trường trên giao diện và trong các mẫu báo cáo xuất ra.")
+    st.subheader("1. 🏫 Cấu hình thông tin Trường học")
     with st.form("school_config_form"):
         sc_col1, sc_col2, sc_col3 = st.columns(3)
         edit_ten_truong = sc_col1.text_input("Tên trường", value=st.session_state.school_info['ten_truong'])
@@ -301,9 +299,11 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
                     st.success("Đã xóa!")
                     st.rerun()
+    else:
+        st.info("Chỉ Ban giám hiệu, Quản trị viên và Tổ chuyên môn mới có quyền can thiệp dữ liệu kho.")
 
 # ==========================================
-# MODULE: ĐĂNG KÝ THIẾT BỊ
+# MODULE: ĐĂNG KÝ THIẾT BỊ (CẬP NHẬT CHỌN BUỔI)
 # ==========================================
 elif menu == "Đăng ký thiết bị":
     st.header("📝 Đăng ký sử dụng phòng bộ môn")
@@ -319,6 +319,8 @@ elif menu == "Đăng ký thiết bị":
         col1, col2 = st.columns(2)
         with col1:
             date = st.date_input("Ngày dạy")
+            # --- TÍNH NĂNG MỚI: BỔ SUNG CHỌN BUỔI DẠY ---
+            buoi = st.selectbox("Buổi dạy", ["Sáng", "Chiều"])
             period = st.selectbox("Tiết học", [1, 2, 3, 4, 5])
             lop = st.text_input("Lớp (VD: 9A)")
             subject = st.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"])
@@ -327,7 +329,8 @@ elif menu == "Đăng ký thiết bị":
             
         if st.form_submit_button("Xác nhận đăng ký"):
             if lop:
-                new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': date, 'Tiết': period, 'Lớp': lop, 'Môn': subject, 'Thiết bị': ", ".join(equipment)}])
+                # Ghi nhận trường dữ liệu 'Buổi' vào DataFrame
+                new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': date, 'Buổi': buoi, 'Tiết': period, 'Lớp': lop, 'Môn': subject, 'Thiết bị': ", ".join(equipment)}])
                 st.session_state.bookings = pd.concat([st.session_state.bookings, new_book], ignore_index=True)
                 st.success("Đã ghi nhận lịch đăng ký!")
                 st.rerun()
@@ -335,7 +338,7 @@ elif menu == "Đăng ký thiết bị":
                 st.warning("Vui lòng nhập tên Lớp!")
 
 # ==========================================
-# MODULE: ĐÁNH GIÁ CHUYÊN MÔN
+# MODULE: ĐÁNH GIÁ CHUYÊN MÔN (CẬP NHẬT THEO BUỔI)
 # ==========================================
 elif menu == "Đánh giá chuyên môn":
     st.header("📋 Đánh giá năng lực tổ chức thực hành")
@@ -351,7 +354,8 @@ elif menu == "Đánh giá chuyên môn":
         else:
             booking_options = []
             for idx, row in gv_bookings.iterrows():
-                booking_options.append(f"Ngày {row['Ngày']} - Tiết {row['Tiết']} - Lớp {row['Lớp']} - Môn {row['Môn']}")
+                # Hiển thị thêm thông tin (Buổi) để Ban giám hiệu lựa chọn chính xác tiết dự giờ
+                booking_options.append(f"Ngày {row['Ngày']} ({row['Buổi']}) - Tiết {row['Tiết']} - Lớp {row['Lớp']} - Môn {row['Môn']}")
             
             target_tiet = st.selectbox("2. Chọn Tiết dạy để đánh giá:", booking_options)
             
@@ -404,7 +408,6 @@ elif menu == "Xuất báo cáo (.docx)":
         
         def create_docx(data, school_info):
             doc = Document()
-            # Sử dụng thông tin cấu hình thay vì chữ cứng
             doc.add_heading(school_info['phong_gd'].upper(), 1)
             doc.add_heading(f"TRƯỜNG {school_info['ten_truong'].upper()}", 2)
             doc.add_paragraph(f"Năm học: {school_info['nam_hoc']}")
@@ -416,7 +419,8 @@ elif menu == "Xuất báo cáo (.docx)":
             
             doc.add_heading('Thông tin tiết dạy', level=1)
             doc.add_paragraph(f"- Giáo viên dạy: {data['Người được đánh giá']}")
-            doc.add_paragraph(f"- Thông tin tiết: {data['Tiết dạy']}")
+            # Thông tin hiển thị ở đây sẽ tự động bao gồm cả (Buổi) do được truyền từ chuỗi Tiết dạy
+            doc.add_paragraph(f"- Thông tin tiết và buổi dạy: {data['Tiết dạy']}")
             
             doc.add_heading('Kết quả', level=1)
             doc.add_paragraph(f"- Tổng điểm: {data['Tổng điểm']}/100")
