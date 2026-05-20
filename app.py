@@ -9,17 +9,16 @@ from io import BytesIO
 # ==========================================
 st.set_page_config(page_title="Quản lý KHTN - TH&THCS Nam Thượng", layout="wide")
 
-# 1. CSDL Người dùng (Hỗ trợ đa vai trò bằng danh sách List)
 if 'users' not in st.session_state:
     st.session_state.users = pd.DataFrame({
         'Tài khoản': ['admin', 'ht', 'totruong', 'gv01'],
         'Mật khẩu': ['123', '123', '123', '123'],
         'Họ tên': ['Quản trị viên (PHT)', 'Nguyễn Văn A (Hiệu trưởng)', 'Trần Thị B (Tổ trưởng)', 'Lê Văn C (Giáo viên)'],
         'Vai trò': [
-            ['Quản trị viên', 'Phó Hiệu trưởng', 'Giáo viên bộ môn'], # Admin kiêm PHT và đi dạy
-            ['Hiệu trưởng', 'Giáo viên bộ môn'],                      # HT kiêm đi dạy
-            ['Tổ trưởng chuyên môn', 'Giáo viên bộ môn'],             # Tổ trưởng kiêm đi dạy
-            ['Giáo viên bộ môn']                                      # Chỉ là giáo viên
+            ['Quản trị viên', 'Phó Hiệu trưởng', 'Giáo viên bộ môn'],
+            ['Hiệu trưởng', 'Giáo viên bộ môn'],
+            ['Tổ trưởng chuyên môn', 'Giáo viên bộ môn'],
+            ['Giáo viên bộ môn']
         ]
     })
 
@@ -59,7 +58,6 @@ if not st.session_state.logged_in:
             submit_login = st.form_submit_button("Đăng nhập", use_container_width=True)
             
             if submit_login:
-                # Tìm user khớp tài khoản và mật khẩu
                 user_match = st.session_state.users[(st.session_state.users['Tài khoản'] == username) & (st.session_state.users['Mật khẩu'] == password)]
                 if not user_match.empty:
                     st.session_state.logged_in = True
@@ -73,18 +71,17 @@ if not st.session_state.logged_in:
 # SIDEBAR: THANH ĐIỀU HƯỚNG & CHUYỂN ĐỔI VAI TRÒ
 # ==========================================
 current_user = st.session_state.current_user
-user_roles = current_user['Vai trò'] # Lấy danh sách các vai trò của tài khoản này
+user_roles = current_user['Vai trò']
 
 st.sidebar.title("TH&THCS Nam Thượng")
 st.sidebar.success(f"👤 Chào, {current_user['Họ tên']}")
 
-# Chức năng chuyển đổi vai trò (Sẽ lấy vai trò đang chọn làm gốc để hiển thị chức năng)
 st.sidebar.markdown("---")
 active_role = st.sidebar.selectbox("🔄 Bạn đang làm việc với tư cách là:", user_roles)
 st.sidebar.markdown("---")
 
-# Phân quyền hiển thị Menu dựa trên vai trò ĐANG ĐƯỢC CHỌN (active_role)
-menu_options = ["Trang chủ & Cảnh báo", "Đăng ký thiết bị"]
+# Phân quyền hiển thị Menu
+menu_options = ["Trang chủ & Cảnh báo", "Quản lý Kho (Vật tư)", "Đăng ký thiết bị"]
 
 if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
     menu_options.append("Đánh giá chuyên môn")
@@ -101,18 +98,17 @@ if st.sidebar.button("Đăng xuất"):
     st.rerun()
 
 # ==========================================
-# MODULE: QUẢN LÝ HỆ THỐNG (Chỉ Quản trị viên)
+# MODULE: QUẢN LÝ HỆ THỐNG (Chỉ Admin)
 # ==========================================
 if menu == "Quản lý Hệ thống (Admin)":
     st.header("⚙️ Quản lý Hệ thống & Cấp tài khoản")
     
     st.subheader("1. Danh sách tài khoản hiện tại")
-    # Hiển thị list vai trò dưới dạng text có dấu phẩy cho dễ nhìn
     df_display = st.session_state.users.copy()
     df_display['Vai trò'] = df_display['Vai trò'].apply(lambda x: ", ".join(x))
     st.dataframe(df_display, use_container_width=True)
     
-    st.subheader("2. Cấp tài khoản mới (Hỗ trợ kiêm nhiệm)")
+    st.subheader("2. Cấp tài khoản mới")
     with st.form("add_user_form"):
         col1, col2 = st.columns(2)
         with col1:
@@ -120,7 +116,6 @@ if menu == "Quản lý Hệ thống (Admin)":
             new_pwd = st.text_input("Mật khẩu")
         with col2:
             new_name = st.text_input("Họ và tên người dùng")
-            # Dùng st.multiselect để cho phép chọn nhiều vai trò cùng lúc
             new_roles = st.multiselect("Chọn các vai trò (Có thể chọn nhiều)", 
                                        ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"])
         
@@ -134,40 +129,59 @@ if menu == "Quản lý Hệ thống (Admin)":
                 st.warning("Vui lòng điền đủ thông tin và chọn ít nhất 1 vai trò!")
 
 # ==========================================
-# MODULE: TRANG CHỦ & QUẢN LÝ VẬT TƯ
+# MODULE: TRANG CHỦ & CẢNH BÁO
 # ==========================================
 elif menu == "Trang chủ & Cảnh báo":
     st.header("📊 Bảng điều khiển (Dashboard)")
+    
+    col1, col2 = st.columns(2)
+    col1.metric("Tổng số thiết bị/Hóa chất trong kho", len(st.session_state.chemicals))
+    col2.metric("Số lượt đăng ký mượn phòng", len(st.session_state.bookings))
     
     today = datetime.date.today()
     df_exp = st.session_state.chemicals.dropna(subset=['Hạn sử dụng'])
     df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
     
+    st.subheader("⚠️ Cảnh báo an toàn (Hóa chất/Mẫu vật)")
     if not df_warning.empty:
-        st.error("⚠️ CẢNH BÁO: Phát hiện hóa chất/tiêu bản sắp hết hạn hoặc đã hết hạn!")
+        st.error("Phát hiện vật tư sắp hết hạn hoặc đã hết hạn!")
         st.dataframe(df_warning, use_container_width=True)
-        
-    st.subheader("📦 Danh mục vật tư hiện có")
+    else:
+        st.success("Tất cả hóa chất và tiêu bản đều trong thời hạn sử dụng an toàn.")
+
+# ==========================================
+# MODULE: QUẢN LÝ KHO (THÊM THIẾT BỊ)
+# ==========================================
+elif menu == "Quản lý Kho (Vật tư)":
+    st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
+    
+    st.subheader("Danh mục vật tư hiện có")
     st.dataframe(st.session_state.chemicals, use_container_width=True)
     
-    # Chỉ Quản trị viên và Tổ trưởng mới được thêm vật tư
-    if active_role in ["Quản trị viên", "Tổ trưởng chuyên môn"]:
-        with st.expander("➕ Bổ sung thiết bị/hóa chất mới vào kho"):
-            with st.form("add_chem_form"):
-                c1, c2, c3 = st.columns(3)
-                ma_vt = c1.text_input("Mã vật tư")
-                ten_vt = c2.text_input("Tên vật tư")
-                phan_mon = c3.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"])
-                
-                c4, c5 = st.columns(2)
-                han_su_dung = c4.date_input("Hạn sử dụng (nếu có)", value=None)
-                tinh_trang = c5.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
-                
-                if st.form_submit_button("Thêm vào kho"):
+    # Form thêm vật tư: Mở cho Quản trị viên, Tổ trưởng (và Ban giám hiệu)
+    if active_role in ["Quản trị viên", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng"]:
+        st.markdown("---")
+        st.subheader("➕ Bổ sung vật tư/thiết bị mới")
+        with st.form("add_chem_form"):
+            c1, c2, c3 = st.columns(3)
+            ma_vt = c1.text_input("Mã vật tư (VD: VL05)")
+            ten_vt = c2.text_input("Tên vật tư")
+            phan_mon = c3.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"])
+            
+            c4, c5 = st.columns(2)
+            han_su_dung = c4.date_input("Hạn sử dụng (Nếu không có, để nguyên)", value=None)
+            tinh_trang = c5.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
+            
+            if st.form_submit_button("Lưu vào kho"):
+                if ma_vt and ten_vt:
                     new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Hạn sử dụng': han_su_dung, 'Tình trạng': tinh_trang}])
                     st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
-                    st.success("Đã cập nhật vào cơ sở dữ liệu kho!")
+                    st.success(f"Đã bổ sung thành công [{ten_vt}] vào cơ sở dữ liệu!")
                     st.rerun()
+                else:
+                    st.warning("Vui lòng nhập Mã vật tư và Tên vật tư!")
+    else:
+        st.info("Chỉ Quản trị viên và Tổ chuyên môn mới có quyền bổ sung thiết bị mới.")
 
 # ==========================================
 # MODULE: ĐĂNG KÝ THIẾT BỊ
@@ -207,7 +221,6 @@ elif menu == "Đăng ký thiết bị":
 elif menu == "Đánh giá chuyên môn":
     st.header("📋 Đánh giá năng lực tổ chức thực hành")
     
-    # Chỉ hiện danh sách các giáo viên có trong trường (loại trừ tài khoản admin hệ thống nếu cần)
     list_gv = st.session_state.users['Họ tên'].tolist()
     target_gv = st.selectbox("1. Chọn Giáo viên để đánh giá:", ["-- Chọn người được đánh giá --"] + list_gv)
     
@@ -244,7 +257,7 @@ elif menu == "Đánh giá chuyên môn":
                     "Người được đánh giá": target_gv,
                     "Tiết dạy": target_tiet,
                     "Người đánh giá": current_user['Họ tên'],
-                    "Chức vụ người đánh giá": active_role, # Lấy vai trò ĐANG đóng vai để đánh giá (PHT/Tổ trưởng...)
+                    "Chức vụ người đánh giá": active_role,
                     "Tổng điểm": total,
                     "Xếp loại": rank,
                     "Nhận xét": comment,
