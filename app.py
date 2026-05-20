@@ -80,7 +80,6 @@ st.sidebar.markdown("---")
 active_role = st.sidebar.selectbox("🔄 Bạn đang làm việc với tư cách là:", user_roles)
 st.sidebar.markdown("---")
 
-# Phân quyền hiển thị Menu
 menu_options = ["Trang chủ & Cảnh báo", "Quản lý Kho (Vật tư)", "Đăng ký thiết bị"]
 
 if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
@@ -105,10 +104,10 @@ if menu == "Quản lý Hệ thống (Admin)":
     
     st.subheader("1. Danh sách tài khoản hiện tại")
     df_display = st.session_state.users.copy()
-    df_display['Vai trò'] = df_display['Vai trò'].apply(lambda x: ", ".join(x))
+    df_display['Vai trò'] = df_display['Vai trò'].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
     st.dataframe(df_display, use_container_width=True)
     
-    st.subheader("2. Cấp tài khoản mới")
+    st.subheader("2. Cấp tài khoản mới (Thủ công)")
     with st.form("add_user_form"):
         col1, col2 = st.columns(2)
         with col1:
@@ -127,6 +126,27 @@ if menu == "Quản lý Hệ thống (Admin)":
                 st.rerun()
             else:
                 st.warning("Vui lòng điền đủ thông tin và chọn ít nhất 1 vai trò!")
+                
+    st.markdown("---")
+    st.subheader("3. 📥 Nhập hàng loạt tài khoản từ file Excel")
+    st.info("💡 Hướng dẫn: File Excel (đuôi .xlsx) cần có dòng tiêu đề với 4 cột chính xác là: **Tài khoản**, **Mật khẩu**, **Họ tên**, **Vai trò**. Nếu 1 người có nhiều vai trò, hãy viết cách nhau bằng dấu phẩy (VD: Giáo viên bộ môn, Tổ trưởng chuyên môn).")
+    
+    uploaded_users = st.file_uploader("Kéo thả hoặc chọn file Excel tài khoản", type=['xlsx', 'xls'], key="upload_users")
+    if uploaded_users is not None:
+        if st.button("Tiến hành nhập dữ liệu tài khoản"):
+            try:
+                df_new_users = pd.read_excel(uploaded_users)
+                # Chuyển đổi cột Vai trò từ chuỗi (string) sang danh sách (list) để hệ thống hiểu
+                df_new_users['Vai trò'] = df_new_users['Vai trò'].astype(str).apply(lambda x: [r.strip() for r in x.split(',')])
+                # Đảm bảo các cột text là dạng chuỗi
+                df_new_users['Tài khoản'] = df_new_users['Tài khoản'].astype(str)
+                df_new_users['Mật khẩu'] = df_new_users['Mật khẩu'].astype(str)
+                
+                st.session_state.users = pd.concat([st.session_state.users, df_new_users], ignore_index=True)
+                st.success(f"✅ Đã nhập thành công {len(df_new_users)} tài khoản vào hệ thống!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Lỗi khi đọc file: {e}. Vui lòng kiểm tra lại cấu trúc các cột trong Excel.")
 
 # ==========================================
 # MODULE: TRANG CHỦ & CẢNH BÁO
@@ -158,10 +178,9 @@ elif menu == "Quản lý Kho (Vật tư)":
     st.subheader("Danh mục vật tư hiện có")
     st.dataframe(st.session_state.chemicals, use_container_width=True)
     
-    # Form thêm vật tư: Mở cho Quản trị viên, Tổ trưởng (và Ban giám hiệu)
     if active_role in ["Quản trị viên", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng"]:
         st.markdown("---")
-        st.subheader("➕ Bổ sung vật tư/thiết bị mới")
+        st.subheader("1. ➕ Bổ sung vật tư/thiết bị mới (Thủ công)")
         with st.form("add_chem_form"):
             c1, c2, c3 = st.columns(3)
             ma_vt = c1.text_input("Mã vật tư (VD: VL05)")
@@ -180,6 +199,25 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.rerun()
                 else:
                     st.warning("Vui lòng nhập Mã vật tư và Tên vật tư!")
+                    
+        st.markdown("---")
+        st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
+        st.info("💡 Hướng dẫn: File Excel cần có 5 cột tiêu đề chính xác là: **Mã vật tư**, **Tên vật tư**, **Phân môn**, **Hạn sử dụng**, **Tình trạng**. Cột Hạn sử dụng có thể để trống với các thiết bị Lý/Sinh.")
+        
+        uploaded_chem = st.file_uploader("Kéo thả hoặc chọn file Excel danh mục thiết bị", type=['xlsx', 'xls'], key="upload_chem")
+        if uploaded_chem is not None:
+            if st.button("Tiến hành nhập dữ liệu vật tư"):
+                try:
+                    df_new_chem = pd.read_excel(uploaded_chem)
+                    # Chuyển đổi định dạng ngày tháng nếu có
+                    if 'Hạn sử dụng' in df_new_chem.columns:
+                        df_new_chem['Hạn sử dụng'] = pd.to_datetime(df_new_chem['Hạn sử dụng'], errors='coerce').dt.date
+                    
+                    st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new_chem], ignore_index=True)
+                    st.success(f"✅ Đã nhập thành công {len(df_new_chem)} thiết bị/vật tư vào kho!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Lỗi khi đọc file: {e}. Vui lòng kiểm tra lại cấu trúc các cột trong Excel.")
     else:
         st.info("Chỉ Quản trị viên và Tổ chuyên môn mới có quyền bổ sung thiết bị mới.")
 
