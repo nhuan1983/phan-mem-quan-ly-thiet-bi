@@ -125,7 +125,8 @@ if not st.session_state.logged_in:
             submit_login = st.form_submit_button("Đăng nhập", use_container_width=True)
             
             if submit_login:
-               user_match = st.session_state.users[(st.session_state.users['Tài khoản'].astype(str) == str(username)) & (st.session_state.users['Mật khẩu'].astype(str) == str(password))]                if not user_match.empty:
+                user_match = st.session_state.users[(st.session_state.users['Tài khoản'].astype(str) == str(username)) & (st.session_state.users['Mật khẩu'].astype(str) == str(password))]
+                if not user_match.empty:
                     st.session_state.logged_in = True
                     st.session_state.current_user = user_match.iloc[0].to_dict()
                     st.rerun()
