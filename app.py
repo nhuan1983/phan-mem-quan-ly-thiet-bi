@@ -7,7 +7,6 @@ from io import BytesIO
 # ==========================================
 # CẤU HÌNH TRANG & KHỞI TẠO CƠ SỞ DỮ LIỆU
 # ==========================================
-# Cập nhật thông tin đơn vị chủ quan mặc định thành UBND Xã theo phân cấp mới
 if 'school_info' not in st.session_state:
     st.session_state.school_info = {
         'ten_truong': 'TH&THCS Nam Thượng',
@@ -110,7 +109,6 @@ if st.sidebar.button("Đăng xuất"):
 if menu == "Quản lý Hệ thống (Admin)":
     st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
     
-    # Cập nhật nhãn nhãn cấu hình chính xác theo chính quyền địa phương cấp xã chủ quản
     st.subheader("1. 🏫 Cấu hình thông tin Trường học & Chính quyền địa phương")
     st.info("Chỉnh sửa tại đây sẽ tự động thay đổi cơ cấu đơn vị chủ quản trên tiêu đề hồ sơ và giao diện hệ thống.")
     with st.form("school_config_form"):
@@ -154,7 +152,27 @@ if menu == "Quản lý Hệ thống (Admin)":
                 
     st.markdown("---")
     st.subheader("4. 📥 Nhập hàng loạt tài khoản từ file Excel")
-    uploaded_users = st.file_uploader("Kéo thả hoặc chọn file Excel tài khoản", type=['xlsx', 'xls'], key="upload_users")
+    st.info("💡 Hướng dẫn: Tải file mẫu bên dưới, điền dữ liệu theo đúng cấu trúc cột và tải lên hệ thống.")
+    
+    # --- TẠO VÀ TẢI FILE MẪU TÀI KHOẢN ---
+    df_mau_tk = pd.DataFrame({
+        'Tài khoản': ['gv_toan01', 'gv_ly01'],
+        'Mật khẩu': ['123', '123'],
+        'Họ tên': ['Trần Thị D', 'Lê Văn E'],
+        'Vai trò': ['Giáo viên bộ môn', 'Giáo viên bộ môn, Tổ trưởng chuyên môn']
+    })
+    output_tk = BytesIO()
+    with pd.ExcelWriter(output_tk, engine='openpyxl') as writer:
+        df_mau_tk.to_excel(writer, index=False)
+    
+    st.download_button(
+        label="⬇️ Tải file Excel mẫu (Tài khoản)",
+        data=output_tk.getvalue(),
+        file_name="Mau_Nhap_Tai_Khoan.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
+    uploaded_users = st.file_uploader("Kéo thả hoặc chọn file Excel tài khoản đã điền", type=['xlsx', 'xls'], key="upload_users")
     if uploaded_users is not None:
         if st.button("Tiến hành nhập dữ liệu tài khoản"):
             try:
@@ -166,7 +184,7 @@ if menu == "Quản lý Hệ thống (Admin)":
                 st.success(f"✅ Đã nhập thành công {len(df_new_users)} tài khoản!")
                 st.rerun()
             except Exception as e:
-                st.error(f"❌ Lỗi: {e}")
+                st.error(f"❌ Lỗi: {e}. Vui lòng đảm bảo file giữ đúng cấu trúc các cột như file mẫu.")
 
     st.markdown("---")
     st.subheader("5. ✏️ Sửa hoặc ❌ Xóa tài khoản người dùng")
@@ -258,7 +276,28 @@ elif menu == "Quản lý Kho (Vật tư)":
                     
         st.markdown("---")
         st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
-        uploaded_chem = st.file_uploader("Kéo thả file Excel", type=['xlsx', 'xls'], key="upload_chem")
+        st.info("💡 Hướng dẫn: Tải file mẫu bên dưới, điền dữ liệu theo đúng cấu trúc cột và tải lên hệ thống. Cột Hạn sử dụng có thể bỏ trống.")
+        
+        # --- TẠO VÀ TẢI FILE MẪU VẬT TƯ ---
+        df_mau_vt = pd.DataFrame({
+            'Mã vật tư': ['VL02', 'HC03'],
+            'Tên vật tư': ['Ampe kế', 'Dung dịch HCl 0.1M'],
+            'Phân môn': ['Vật lý', 'Hóa học'],
+            'Hạn sử dụng': ['', '2027-12-31'],
+            'Tình trạng': ['Tốt', 'Tốt']
+        })
+        output_vt = BytesIO()
+        with pd.ExcelWriter(output_vt, engine='openpyxl') as writer:
+            df_mau_vt.to_excel(writer, index=False)
+            
+        st.download_button(
+            label="⬇️ Tải file Excel mẫu (Thiết bị/Vật tư)",
+            data=output_vt.getvalue(),
+            file_name="Mau_Nhap_Vat_Tu.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
+        uploaded_chem = st.file_uploader("Kéo thả file Excel thiết bị đã điền", type=['xlsx', 'xls'], key="upload_chem")
         if uploaded_chem is not None:
             if st.button("Tiến hành nhập dữ liệu"):
                 try:
@@ -269,7 +308,7 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.success("Đã nhập thành công!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Lỗi: {e}")
+                    st.error(f"Lỗi: {e}. Vui lòng đảm bảo file giữ đúng cấu trúc các cột như file mẫu.")
 
         st.markdown("---")
         st.subheader("3. ✏️ Sửa hoặc ❌ Xóa thiết bị")
@@ -301,6 +340,8 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
                     st.success("Đã xóa!")
                     st.rerun()
+    else:
+        st.info("Chỉ Ban giám hiệu, Quản trị viên và Tổ chuyên môn mới có quyền can thiệp dữ liệu kho.")
 
 # ==========================================
 # MODULE: ĐĂNG KÝ THIẾT BỊ
@@ -405,7 +446,6 @@ elif menu == "Xuất báo cáo (.docx)":
         
         def create_docx(data, school_info):
             doc = Document()
-            # Cập nhật Thể thức văn bản chuẩn công quyền Việt Nam: Đơn vị chủ quản cấp xã trên cùng
             doc.add_heading(school_info['don_vi_chu_quan'].upper(), 1)
             doc.add_heading(f"TRƯỜNG {school_info['ten_truong'].upper()}", 2)
             doc.add_paragraph(f"Năm học: {school_info['nam_hoc']}")
