@@ -165,7 +165,12 @@ if st.sidebar.button("Đăng xuất"):
 # MODULE: QUẢN LÝ HỆ THỐNG
 # ==========================================
 if menu == "Quản lý Hệ thống (Admin)":
-    st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
+# LỚP KHÓA QUYỀN
+    if active_role != "Quản trị viên":
+        st.error("⚠️ Bạn không có quyền truy cập khu vực này!")
+        st.stop() # Dừng việc hiển thị nếu không phải Admin
+        
+        st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
     
     tab1, tab2, tab3 = st.tabs(["🏫 Cấu hình Trường học", "👥 Quản lý Tài khoản", "📥 Nhập dữ liệu Excel"])
     
@@ -446,6 +451,12 @@ elif menu == "Đăng ký thiết bị":
 # MODULE: ĐÁNH GIÁ CHUYÊN MÔN
 # ==========================================
 elif menu == "Đánh giá chuyên môn":
+# LỚP KHÓA QUYỀN
+    allowed_roles = ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]
+    if active_role not in allowed_roles:
+        st.error("⚠️ Khu vực này chỉ dành cho Ban giám hiệu và Tổ trưởng!")
+        st.stop()
+        
     st.header("📋 Đánh giá năng lực thực hành")
     list_gv = st.session_state.users['Họ tên'].tolist()
     target_gv = st.selectbox("1. Chọn Giáo viên:", ["-- Chọn --"] + list_gv)
