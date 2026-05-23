@@ -309,11 +309,13 @@ elif menu == "Trang chủ & Cảnh báo":
             
     st.markdown("---")
     
-    # 3. Bảng Cảnh báo
+    # 3. Bảng Cảnh báo (Đã thêm tính năng ẩn/thu gọn)
     st.subheader("⚠️ Cảnh báo An toàn (Hóa chất/Mẫu vật)")
     if not df_warning.empty:
-        st.error("Phát hiện các vật tư dưới đây sắp hết hạn hoặc đã quá hạn sử dụng. Cần có phương án xử lý ngay!")
-        st.dataframe(df_warning, use_container_width=True)
+        # Sử dụng st.expander để giấu cảnh báo đi, người dùng bấm vào mới hiện ra
+        with st.expander(f"🚨 Phát hiện {len(df_warning)} vật tư sắp hết hạn! (Nhấn vào đây để xem chi tiết)", expanded=False):
+            st.error("Các vật tư dưới đây sắp hết hạn hoặc đã quá hạn sử dụng. Cần có phương án xử lý ngay!")
+            st.dataframe(df_warning, use_container_width=True)
     else:
         st.success("Tuyệt vời! Tất cả hóa chất và tiêu bản trong kho đều đang ở trạng thái an toàn.")
 
