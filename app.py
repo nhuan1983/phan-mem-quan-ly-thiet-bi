@@ -4,6 +4,7 @@ import datetime
 import json
 from docx import Document
 from io import BytesIO
+import plotly.express as px
 
 # ==========================================
 # CẤU HÌNH KẾT NỐI GOOGLE SHEETS (DATABASE REAL)
@@ -120,7 +121,6 @@ if not st.session_state.logged_in:
             submit_login = st.form_submit_button("Đăng nhập", use_container_width=True)
             
             if submit_login:
-                # Ép kiểu chuỗi để sửa lỗi với Google Sheets
                 user_match = st.session_state.users[(st.session_state.users['Tài khoản'].astype(str) == str(username)) & (st.session_state.users['Mật khẩu'].astype(str) == str(password))]
                 if not user_match.empty:
                     st.session_state.logged_in = True
@@ -162,12 +162,11 @@ if st.sidebar.button("Đăng xuất"):
     st.rerun()
 
 # ==========================================
-# MODULE: QUẢN LÝ HỆ THỐNG (UI TABS MỚI)
+# MODULE: QUẢN LÝ HỆ THỐNG
 # ==========================================
 if menu == "Quản lý Hệ thống (Admin)":
     st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
     
-    # CHIA LÀM 3 TABS GỌN GÀNG
     tab1, tab2, tab3 = st.tabs(["🏫 Cấu hình Trường học", "👥 Quản lý Tài khoản", "📥 Nhập dữ liệu Excel"])
     
     with tab1:
@@ -259,29 +258,67 @@ if menu == "Quản lý Hệ thống (Admin)":
                 st.error(f"Lỗi: {e}")
 
 # ==========================================
-# MODULE: TRANG CHỦ & CẢNH BÁO
+# MODULE: TRANG CHỦ (BẢNG ĐIỀU KHIỂN - DASHBOARD MỚI)
 # ==========================================
 elif menu == "Trang chủ & Cảnh báo":
-    st.header("📊 Bảng điều khiển (Dashboard)")
-    col1, col2 = st.columns(2)
-    col1.metric("Tổng số thiết bị/Hóa chất", len(st.session_state.chemicals))
-    col2.metric("Số lượt đăng ký mượn", len(st.session_state.bookings))
+    st.header("📊 Bảng điều khiển Tổng quan (Dashboard)")
     
+    # 1. Hàng chỉ số (Metrics)
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("📦 Tổng mã vật tư", len(st.session_state.chemicals))
+    col2.metric("📝 Tổng lượt mượn", len(st.session_state.bookings))
+    col3.metric("📋 Hồ sơ dự giờ", len(st.session_state.evaluations))
+    
+    # Tính toán cảnh báo
     today = datetime.date.today()
     df_chem_check = st.session_state.chemicals.copy()
     df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], errors='coerce').dt.date
     df_exp = df_chem_check.dropna(subset=['Hạn sử dụng'])
     df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
     
-    st.subheader("⚠️ Cảnh báo an toàn")
+    col4.metric("⚠️ Sắp hết hạn", len(df_warning))
+    st.markdown("---")
+    
+    # 2. Hàng Biểu đồ (Charts)
+    chart_col1, chart_col2 = st.columns(2)
+    
+    with chart_col1:
+        st.subheader("Cơ cấu Vật tư theo Phân môn")
+        if not st.session_state.chemicals.empty:
+            df_mon = st.session_state.chemicals['Phân môn'].value_counts().reset_index()
+            df_mon.columns = ['Phân môn', 'Số lượng']
+            fig1 = px.pie(df_mon, values='Số lượng', names='Phân môn', hole=0.4, 
+                          color_discrete_sequence=px.colors.qualitative.Pastel)
+            fig1.update_layout(margin=dict(t=20, b=20, l=20, r=20))
+            st.plotly_chart(fig1, use_container_width=True)
+        else:
+            st.info("Kho vật tư hiện đang trống.")
+            
+    with chart_col2:
+        st.subheader("Tần suất Sử dụng Phòng Thực hành")
+        if not st.session_state.bookings.empty:
+            df_muon = st.session_state.bookings['Môn'].value_counts().reset_index()
+            df_muon.columns = ['Môn học', 'Số lượt đăng ký']
+            fig2 = px.bar(df_muon, x='Môn học', y='Số lượt đăng ký', color='Môn học', 
+                          text='Số lượt đăng ký', color_discrete_sequence=px.colors.qualitative.Set2)
+            fig2.update_traces(textposition='outside')
+            fig2.update_layout(margin=dict(t=20, b=20, l=20, r=20), showlegend=False)
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.info("Chưa có lượt đăng ký sử dụng nào.")
+            
+    st.markdown("---")
+    
+    # 3. Bảng Cảnh báo
+    st.subheader("⚠️ Cảnh báo An toàn (Hóa chất/Mẫu vật)")
     if not df_warning.empty:
-        st.error("Phát hiện vật tư sắp hết hạn!")
+        st.error("Phát hiện các vật tư dưới đây sắp hết hạn hoặc đã quá hạn sử dụng. Cần có phương án xử lý ngay!")
         st.dataframe(df_warning, use_container_width=True)
     else:
-        st.success("Tất cả hóa chất an toàn.")
+        st.success("Tuyệt vời! Tất cả hóa chất và tiêu bản trong kho đều đang ở trạng thái an toàn.")
 
 # ==========================================
-# MODULE: QUẢN LÝ KHO (UI TABS MỚI)
+# MODULE: QUẢN LÝ KHO (Vật tư)
 # ==========================================
 elif menu == "Quản lý Kho (Vật tư)":
     st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
@@ -364,7 +401,7 @@ elif menu == "Quản lý Kho (Vật tư)":
                         st.rerun()
 
 # ==========================================
-# MODULE: ĐĂNG KÝ THIẾT BỊ (UI TABS MỚI)
+# MODULE: ĐĂNG KÝ THIẾT BỊ
 # ==========================================
 elif menu == "Đăng ký thiết bị":
     st.header("📝 Đăng ký sử dụng phòng bộ môn")
