@@ -524,3 +524,14 @@ elif menu == "Xuất báo cáo (.docx)":
             return bio.getvalue()
 
         st.download_button("📄 Tải xuống văn bản (.docx)", data=create_docx(target_record, st.session_state.school_info), file_name=f"PhieuDanhGia_{target_record['Người được đánh giá']}.docx")
+# ==========================================
+# CẤU HÌNH ẨN GIAO DIỆN THỪA (CSS)
+# ==========================================
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
