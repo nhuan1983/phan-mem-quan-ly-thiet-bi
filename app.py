@@ -263,19 +263,26 @@ if menu == "Quản lý Hệ thống (Admin)":
 elif menu == "Trang chủ & Cảnh báo":
     st.header("📊 Bảng điều khiển Tổng quan (Dashboard)")
     
+    # Tính toán cảnh báo TRƯỚC để xử lý lỗi ngày tháng từ Google Sheets
+    today = pd.Timestamp.today().normalize()
+    df_chem_check = st.session_state.chemicals.copy()
+    
+    # Ép kiểu dữ liệu về dạng Datetime chuẩn của hệ thống (Tránh lỗi AttributeError)
+    df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], errors='coerce')
+    df_exp = df_chem_check.dropna(subset=['Hạn sử dụng'])
+    
+    if not df_exp.empty:
+        df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
+        # Format lại cột ngày để hiển thị đẹp gọn
+        df_warning['Hạn sử dụng'] = df_warning['Hạn sử dụng'].dt.strftime('%Y-%m-%d')
+    else:
+        df_warning = pd.DataFrame()
+        
     # 1. Hàng chỉ số (Metrics)
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("📦 Tổng mã vật tư", len(st.session_state.chemicals))
     col2.metric("📝 Tổng lượt mượn", len(st.session_state.bookings))
     col3.metric("📋 Hồ sơ dự giờ", len(st.session_state.evaluations))
-    
-    # Tính toán cảnh báo
-    today = datetime.date.today()
-    df_chem_check = st.session_state.chemicals.copy()
-    df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], errors='coerce').dt.date
-    df_exp = df_chem_check.dropna(subset=['Hạn sử dụng'])
-    df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
-    
     col4.metric("⚠️ Sắp hết hạn", len(df_warning))
     st.markdown("---")
     
@@ -309,12 +316,11 @@ elif menu == "Trang chủ & Cảnh báo":
             
     st.markdown("---")
     
-    # 3. Bảng Cảnh báo (Đã thêm tính năng ẩn/thu gọn)
-    st.subheader("⚠️ Cảnh báo An toàn (Hóa chất/Mẫu vật)")
+    # 3. Bảng Cảnh báo (Đã thu gọn)
+    st.subheader("⚠️ Cảnh báo An toàn")
     if not df_warning.empty:
-        # Sử dụng st.expander để giấu cảnh báo đi, người dùng bấm vào mới hiện ra
-        with st.expander(f"🚨 Phát hiện {len(df_warning)} vật tư sắp hết hạn! (Nhấn vào đây để xem chi tiết)", expanded=False):
-            st.error("Các vật tư dưới đây sắp hết hạn hoặc đã quá hạn sử dụng. Cần có phương án xử lý ngay!")
+        with st.expander(f"🚨 Phát hiện {len(df_warning)} vật tư sắp hết hạn! (Nhấn vào đây để xem)", expanded=False):
+            st.error("Các vật tư dưới đây sắp hoặc đã quá hạn sử dụng. Cần có phương án xử lý ngay!")
             st.dataframe(df_warning, use_container_width=True)
     else:
         st.success("Tuyệt vời! Tất cả hóa chất và tiêu bản trong kho đều đang ở trạng thái an toàn.")
