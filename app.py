@@ -104,7 +104,17 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'current_user' not in st.session_state:
     st.session_state.current_user = None
-
+# ==========================================
+# CẤU HÌNH ẨN GIAO DIỆN THỪA (CSS) - DÁN VÀO ĐẦU FILE
+# ==========================================
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 # ==========================================
 # GIAO DIỆN ĐĂNG NHẬP
 # ==========================================
