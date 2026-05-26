@@ -11,6 +11,7 @@ import plotly.express as px
 # ==========================================
 st.set_page_config(page_title="Hệ thống Quản lý KHTN", layout="wide")
 
+# CSS Ẩn thanh công cụ mặc định của Streamlit
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -37,6 +38,7 @@ if "gspread_creds" in st.secrets and "spreadsheet_key" in st.secrets:
     except Exception as e:
         st.sidebar.error(f"⚠️ Lỗi kết nối Google Sheets: {e}")
 
+# --- CÁC HÀM ĐỌC/GHI DỮ LIỆU THÔNG MINH ---
 def load_data(sheet_name, default_df):
     if USE_CLOUD_DB:
         try:
@@ -74,7 +76,7 @@ def save_data(sheet_name, df_to_save):
             st.error(f"Không thể đồng bộ lên Google Sheets: {e}")
 
 # ==========================================
-# KHỞI TẠO HOẶC TẢI CƠ SỞ DỮ LIỆU (ĐÃ VIỆT HÓA NGÀY THÁNG)
+# KHỞI TẠO HOẶC TẢI CƠ SỞ DỮ LIỆU
 # ==========================================
 default_school = pd.DataFrame([{'ten_truong': 'TH&THCS Nam Thượng', 'don_vi_chu_quan': 'Ủy ban nhân dân xã Hợp Kim', 'nam_hoc': '2025-2026'}])
 df_school_db = load_data('school_info', default_school)
@@ -95,7 +97,7 @@ default_chem = pd.DataFrame({
     'Tên vật tư': ['Axit Sunfuric (H2SO4)', 'Natri Hidroxit (NaOH)', 'Bộ Khúc xạ ánh sáng', 'Tiêu bản tế bào'],
     'Phân môn': ['Hóa học', 'Hóa học', 'Vật lý', 'Sinh học'],
     'Số lượng': [5, 10, 3, 20],
-    'Hạn sử dụng': ['15/06/2026', '10/04/2026', '', '01/01/2027'], # Định dạng DD/MM/YYYY
+    'Hạn sử dụng': ['15/06/2026', '10/04/2026', '', '01/01/2027'],
     'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt']
 })
 if 'chemicals' not in st.session_state:
@@ -184,7 +186,7 @@ if menu == "Quản lý Hệ thống (Admin)":
         
     st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
     
-    st.subheader("1. 🏫 Cấu hình thông tin Trường học")
+    st.subheader("1. 🏫 Cấu hình thông Trường học")
     with st.form("school_config_form"):
         sc_col1, sc_col2, sc_col3 = st.columns(3)
         edit_ten_truong = sc_col1.text_input("Tên trường", value=st.session_state.school_info['ten_truong'])
@@ -273,33 +275,19 @@ if menu == "Quản lý Hệ thống (Admin)":
                     st.success("Đã xóa!")
                     st.rerun()
 
-    st.markdown("---")
-    st.subheader("6. 📊 Ma trận phân quyền Menu Hệ thống")
-    df_quyen = pd.DataFrame([
-        {"Menu": "Quản lý Hệ thống (Admin)", "Quản trị viên": "✅", "Ban Giám hiệu": "❌", "Tổ trưởng": "❌", "Giáo viên": "❌"},
-        {"Menu": "Trang chủ, Kho, Đăng ký thiết bị, Đổi Mật khẩu", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "✅"},
-        {"Menu": "Thêm/Sửa/Xóa Thiết bị (Kho)", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "❌"},
-        {"Menu": "Đánh giá, Xuất báo cáo", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "❌"}
-    ])
-    st.table(df_quyen)
-
 # ------------------------------------------
 # 2. TRANG CHỦ & CẢNH BÁO
 # ------------------------------------------
 elif menu == "Trang chủ & Cảnh báo":
     st.header("📊 Bảng điều khiển Tổng quan (Dashboard)")
     
-    # Tính toán dữ liệu cảnh báo an toàn (Đã tối ưu cho định dạng DD/MM/YYYY)
     today = pd.Timestamp.today().normalize()
     df_chem_check = st.session_state.chemicals.copy()
-    
-    # Sử dụng dayfirst=True để Pandas nhận diện chuẩn ngày Việt Nam
     df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], dayfirst=True, errors='coerce')
     df_exp = df_chem_check.dropna(subset=['Hạn sử dụng'])
     
     if not df_exp.empty:
         df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
-        # Hiển thị lại bằng định dạng DD/MM/YYYY
         df_warning['Hạn sử dụng'] = df_warning['Hạn sử dụng'].dt.strftime('%d/%m/%Y')
     else:
         df_warning = pd.DataFrame()
@@ -336,7 +324,6 @@ elif menu == "Trang chủ & Cảnh báo":
             st.info("Chưa có lượt đăng ký sử dụng nào.")
             
     st.markdown("---")
-    
     st.subheader("⚠️ Cảnh báo An toàn (Hóa chất/Mẫu vật)")
     if not df_warning.empty:
         with st.expander(f"🚨 Hệ thống phát hiện {len(df_warning)} vật tư sắp hoặc đã hết hạn! (Nhấn vào đây để xem chi tiết)", expanded=False):
@@ -363,13 +350,11 @@ elif menu == "Quản lý Kho (Vật tư)":
             so_luong = c4.number_input("Số lượng", min_value=1, value=1)
             
             c5, c6 = st.columns(2)
-            # Ép bộ chọn lịch theo chuẩn DD/MM/YYYY
             han_su_dung = c5.date_input("Hạn sử dụng", value=None, format="DD/MM/YYYY")
             tinh_trang = c6.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
             
             if st.form_submit_button("Lưu vào kho"):
                 if ma_vt and ten_vt:
-                    # Chuyển đổi ngày tháng thành chuỗi theo chuẩn Việt Nam trước khi lưu
                     han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
                     new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Hạn sử dụng': han_str, 'Tình trạng': tinh_trang}])
                     st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
@@ -389,7 +374,6 @@ elif menu == "Quản lý Kho (Vật tư)":
         if uploaded_chem is not None and st.button("Tiến hành nhập dữ liệu"):
             try:
                 df_new = pd.read_excel(uploaded_chem)
-                # Đảm bảo ép kiểu chuỗi để tránh ngày tháng bị lỗi định dạng từ Excel
                 for col in df_new.columns:
                     if df_new[col].dtype == 'object' or 'Hạn sử dụng' in col:
                         df_new[col] = df_new[col].astype(str).replace('nan', '')
@@ -431,19 +415,22 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.rerun()
 
 # ------------------------------------------
-# 4. ĐĂNG KÝ THIẾT BỊ
+# 4. ĐĂNG KÝ THIẾT BỊ (Đã thêm tính năng Sửa/Xóa lịch)
 # ------------------------------------------
 elif menu == "Đăng ký thiết bị":
     st.header("📝 Đăng ký sử dụng phòng bộ môn")
+    
+    st.subheader("1. Lịch đăng ký toàn trường")
     if not st.session_state.bookings.empty:
         st.dataframe(st.session_state.bookings, use_container_width=True)
     else:
         st.info("Chưa có lịch đăng ký nào từ các giáo viên.")
         
+    st.markdown("---")
+    st.subheader("2. ➕ Tạo lịch đăng ký mới")
     with st.form("booking_form"):
         col1, col2 = st.columns(2)
         with col1:
-            # Ép bộ chọn lịch theo chuẩn DD/MM/YYYY
             date = st.date_input("Ngày dạy thực hành", format="DD/MM/YYYY")
             buoi = st.selectbox("Buổi dạy", ["Sáng", "Chiều"])
             period = st.selectbox("Tiết học giảng dạy", [1, 2, 3, 4, 5])
@@ -454,13 +441,71 @@ elif menu == "Đăng ký thiết bị":
             
         if st.form_submit_button("Xác nhận đăng ký"):
             if lop:
-                # Chuyển đổi đối tượng lịch thành chuỗi văn bản theo chuẩn DD/MM/YYYY
                 date_str = date.strftime('%d/%m/%Y')
                 new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': date_str, 'Buổi': buoi, 'Tiết': period, 'Lớp': lop, 'Môn': subject, 'Thiết bị': ", ".join(equipment)}])
                 st.session_state.bookings = pd.concat([st.session_state.bookings, new_book], ignore_index=True)
                 save_data('bookings', st.session_state.bookings)
-                st.success("Lịch đăng ký đã được lưu!")
+                st.success("Lịch đăng ký đã được thêm mới thành công!")
                 st.rerun()
+
+    st.markdown("---")
+    st.subheader("3. ✏️ Quản lý lịch cá nhân (Sửa hoặc Hủy lịch)")
+    st.info("Giáo viên chỉ có thể xem và điều chỉnh các lịch đăng ký do chính mình tạo ra để đảm bảo tính riêng tư và bảo mật.")
+    
+    # Lọc ra danh sách các lịch do người dùng hiện tại đang đăng nhập tạo ra
+    user_bookings = st.session_state.bookings[st.session_state.bookings['Người đăng ký'] == current_user['Họ tên']]
+    
+    if not user_bookings.empty:
+        # Tạo danh sách các tùy chọn hiển thị trên Dropdown cho dễ nhìn
+        booking_options = [f"Lớp {row['Lớp']} - Tiết {row['Tiết']} (Ngày {row['Ngày']})" for idx, row in user_bookings.iterrows()]
+        selected_booking_str = st.selectbox("Chọn lịch Thầy/Cô muốn điều chỉnh:", ["-- Chọn lịch --"] + booking_options)
+        
+        if selected_booking_str != "-- Chọn lịch --":
+            # Ánh xạ ngược lại để tìm dòng dữ liệu thực tế (index) trong bảng chung
+            actual_idx = user_bookings.index[booking_options.index(selected_booking_str) - 1]
+            booking_data = st.session_state.bookings.iloc[actual_idx]
+            
+            with st.form("edit_booking_form"):
+                e_col1, e_col2 = st.columns(2)
+                with e_col1:
+                    # Bắt lỗi an toàn khi chuyển đổi ngày tháng (Phòng trường hợp dữ liệu cũ bị sai định dạng)
+                    try:
+                        parsed_date = pd.to_datetime(booking_data['Ngày'], dayfirst=True).date()
+                    except:
+                        parsed_date = datetime.date.today()
+                        
+                    e_date = st.date_input("Chỉnh sửa ngày dạy", value=parsed_date, format="DD/MM/YYYY")
+                    e_buoi = st.selectbox("Chỉnh sửa buổi dạy", ["Sáng", "Chiều"], index=["Sáng", "Chiều"].index(booking_data['Buổi']))
+                    e_period = st.selectbox("Chỉnh sửa tiết học", [1, 2, 3, 4, 5], index=[1, 2, 3, 4, 5].index(int(booking_data['Tiết'])))
+                    e_lop = st.text_input("Chỉnh sửa Lớp", value=booking_data['Lớp'])
+                    e_subject = st.selectbox("Chỉnh sửa phân môn", ["Vật lý", "Hóa học", "Sinh học"], index=["Vật lý", "Hóa học", "Sinh học"].index(booking_data['Môn']))
+                with e_col2:
+                    # Đọc lại danh sách thiết bị đã chọn cũ
+                    current_equip = [x.strip() for x in str(booking_data['Thiết bị']).split(',')] if booking_data['Thiết bị'] else []
+                    valid_equip = st.session_state.chemicals['Tên vật tư'].tolist()
+                    # Loại bỏ những thiết bị cũ không còn tồn tại trong kho (tránh lỗi ngầm)
+                    safe_current_equip = [x for x in current_equip if x in valid_equip]
+                    e_equipment = st.multiselect("Chỉnh sửa thiết bị cần mượn", valid_equip, default=safe_current_equip)
+                    
+                btn_c1, btn_c2 = st.columns(2)
+                if btn_c1.form_submit_button("💾 Lưu thay đổi lịch"):
+                    st.session_state.bookings.at[actual_idx, 'Ngày'] = e_date.strftime('%d/%m/%Y')
+                    st.session_state.bookings.at[actual_idx, 'Buổi'] = e_buoi
+                    st.session_state.bookings.at[actual_idx, 'Tiết'] = e_period
+                    st.session_state.bookings.at[actual_idx, 'Lớp'] = e_lop
+                    st.session_state.bookings.at[actual_idx, 'Môn'] = e_subject
+                    st.session_state.bookings.at[actual_idx, 'Thiết bị'] = ", ".join(e_equipment)
+                    save_data('bookings', st.session_state.bookings)
+                    st.success("✅ Đã cập nhật lại lịch đăng ký!")
+                    st.rerun()
+                    
+                if btn_c2.form_submit_button("❌ Xóa/Hủy lịch này"):
+                    st.session_state.bookings = st.session_state.bookings.drop(actual_idx).reset_index(drop=True)
+                    save_data('bookings', st.session_state.bookings)
+                    st.success("✅ Đã hủy lịch đăng ký thành công!")
+                    st.rerun()
+    else:
+        st.info("Hiện tại Thầy/Cô chưa có lịch đăng ký nào trên hệ thống.")
 
 # ------------------------------------------
 # 5. ĐÁNH GIÁ CHUYÊN MÔN
@@ -497,7 +542,6 @@ elif menu == "Đánh giá chuyên môn":
                 record = {
                     "Người được đánh giá": target_gv, "Tiết dạy": target_tiet, "Người đánh giá": current_user['Họ tên'],
                     "Chức vụ người đánh giá": active_role, "Tổng điểm": total, "Xếp loại": rank, "Nhận xét": comment,
-                    # Ngày chấm hệ thống tự lấy hiện tại, ép chuẩn DD/MM/YYYY
                     "Ngày chấm": datetime.date.today().strftime("%d/%m/%Y")
                 }
                 st.session_state.evaluations.append(record)
