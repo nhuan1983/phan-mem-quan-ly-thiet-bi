@@ -5,6 +5,48 @@ import json
 from docx import Document
 from io import BytesIO
 import plotly.express as px
+# ==========================================
+# CẬP NHẬT PHÂN QUYỀN & ĐỔI MẬT KHẨU
+# ==========================================
+
+# --- Logic đổi mật khẩu cá nhân ---
+def change_password(username, new_password):
+    idx = st.session_state.users[st.session_state.users['Tài khoản'] == username].index[0]
+    st.session_state.users.at[idx, 'Mật khẩu'] = new_password
+    save_data('users', st.session_state.users)
+    st.success("Đổi mật khẩu thành công!")
+
+# --- Menu chính (đã được bọc bởi logic phân quyền) ---
+menu_options = ["Trang chủ & Cảnh báo", "Quản lý Kho (Vật tư)", "Đăng ký thiết bị", "Đổi mật khẩu"]
+
+# Logic hiển thị menu dựa trên phân quyền
+if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
+    menu_options.extend(["Đánh giá chuyên môn", "Xuất báo cáo (.docx)"])
+
+menu = st.sidebar.radio("📌 Chọn chức năng:", menu_options)
+
+# --- Các module cụ thể với lớp chặn quyền ---
+elif menu == "Đổi mật khẩu":
+    st.header("🔑 Đổi mật khẩu cá nhân")
+    with st.form("change_pass_form"):
+        old_pass = st.text_input("Mật khẩu hiện tại", type="password")
+        new_pass = st.text_input("Mật khẩu mới", type="password")
+        re_new_pass = st.text_input("Nhập lại mật khẩu mới", type="password")
+        if st.form_submit_button("Xác nhận đổi"):
+            if old_pass == current_user['Mật khẩu']:
+                if new_pass == re_new_pass:
+                    change_password(current_user['Tài khoản'], new_pass)
+                else:
+                    st.error("Mật khẩu nhập lại không khớp!")
+            else:
+                st.error("Mật khẩu hiện tại không đúng!")
+
+elif menu == "Đánh giá chuyên môn":
+    # Lớp chặn quyền cứng
+    if active_role not in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
+        st.error("⚠️ Bạn không có quyền truy cập khu vực này!")
+        st.stop()
+    # ... (phần code xử lý đánh giá giữ nguyên) ...
 
 # ==========================================
 # CẤU HÌNH KẾT NỐI GOOGLE SHEETS (DATABASE REAL)
