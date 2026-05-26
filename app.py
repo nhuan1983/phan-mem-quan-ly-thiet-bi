@@ -105,7 +105,7 @@ if 'current_user' not in st.session_state:
     st.session_state.current_user = None
 
 # ==========================================
-# GIAO DIỆN ĐĂNG NHẬP (ĐÃ SỬA LỖI MẬT KHẨU SỐ)
+# GIAO DIỆN ĐĂNG NHẬP
 # ==========================================
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #1E88E5;'>HỆ THỐNG QUẢN LÝ KHTN</h1>", unsafe_allow_html=True)
@@ -146,11 +146,15 @@ st.sidebar.markdown("---")
 active_role = st.sidebar.selectbox("🔄 Bạn đang làm việc với tư cách là:", user_roles)
 st.sidebar.markdown("---")
 
-# Cấu hình danh sách Menu
+# --- XÂY DỰNG MENU DỰA TRÊN PHÂN QUYỀN NGƯỜI DÙNG ---
 menu_options = ["Trang chủ & Cảnh báo", "Quản lý Kho (Vật tư)", "Đăng ký thiết bị", "Đổi mật khẩu"]
+
+# Nếu thuộc nhóm quản lý, mở khóa thêm các tính năng chuyên môn
 if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
     menu_options.append("Đánh giá chuyên môn")
     menu_options.append("Xuất báo cáo (.docx)")
+
+# Chỉ duy nhất chức vụ Quản trị viên mới xuất hiện menu cài đặt hệ thống
 if active_role == "Quản trị viên":
     menu_options.insert(0, "Quản lý Hệ thống (Admin)")
 
@@ -162,9 +166,18 @@ if st.sidebar.button("Đăng xuất"):
     st.rerun()
 
 # ==========================================
-# MODULE 1: QUẢN LÝ HỆ THỐNG (Chỉ Admin)
+# CẤU TRÚC ĐIỀU HƯỚNG VÀ KIỂM SOÁT QUYỀN TRUY CẬP CỨNG
 # ==========================================
+
+# ------------------------------------------
+# MODULE: QUẢN LÝ HỆ THỐNG (Chỉ Admin)
+# ------------------------------------------
 if menu == "Quản lý Hệ thống (Admin)":
+    # Khóa bảo mật cứng: Nếu cố tình vào bằng URL ẩn mà không phải Admin sẽ bị chặn đứng
+    if active_role != "Quản trị viên":
+        st.error("⚠️ Bạn không có quyền truy cập khu vực tối cao này!")
+        st.stop()
+        
     st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
     
     st.subheader("1. 🏫 Cấu hình thông tin Trường học")
@@ -196,7 +209,7 @@ if menu == "Quản lý Hệ thống (Admin)":
             new_pwd = st.text_input("Mật khẩu")
         with col2:
             new_name = st.text_input("Họ và tên")
-            new_roles = st.multiselect("Phân quyền", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"])
+            new_roles = st.multiselect("Phân quyền nhóm người dùng", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"])
         
         if st.form_submit_button("Tạo tài khoản"):
             if new_acc and new_pwd and new_name and len(new_roles) > 0:
@@ -224,13 +237,13 @@ if menu == "Quản lý Hệ thống (Admin)":
                 df_new_users['Mật khẩu'] = df_new_users['Mật khẩu'].astype(str)
                 st.session_state.users = pd.concat([st.session_state.users, df_new_users], ignore_index=True)
                 save_data('users', st.session_state.users)
-                st.success("Đã nhập thành công tài khoản!")
+                st.success("Đã nhập thành công tài khoản hàng loạt!")
                 st.rerun()
             except Exception as e:
-                st.error(f"Lỗi: {e}")
+                st.error(f"Lỗi cấu trúc Excel: {e}")
 
     st.markdown("---")
-    st.subheader("5. ✏️ Sửa hoặc ❌ Xóa tài khoản")
+    st.subheader("5. ✏️ Sửa hoặc ❌ Xóa tài khoản người dùng")
     user_list = st.session_state.users['Tài khoản'].tolist()
     selected_user = st.selectbox("Chọn tài khoản cần xử lý:", ["-- Chọn tài khoản --"] + user_list)
     if selected_user != "-- Chọn tài khoản --":
@@ -248,25 +261,42 @@ if menu == "Quản lý Hệ thống (Admin)":
                 st.session_state.users.at[idx, 'Mật khẩu'] = edit_pwd
                 st.session_state.users.at[idx, 'Vai trò'] = edit_roles
                 save_data('users', st.session_state.users)
-                st.success("Đã cập nhật thay đổi!")
+                st.success("Đã cập nhật thay đổi thông tin người dùng!")
                 st.rerun()
             if btn_col2.form_submit_button("❌ XÓA TÀI KHOẢN"):
                 if selected_user == current_user['Tài khoản']:
-                    st.error("Không thể tự xóa tài khoản đang sử dụng!")
+                    st.error("Không thể tự xóa tài khoản chính mình đang đăng nhập!")
                 else:
                     st.session_state.users = st.session_state.users[st.session_state.users['Tài khoản'] != selected_user].reset_index(drop=True)
                     save_data('users', st.session_state.users)
-                    st.success("Đã xóa tài khoản!")
+                    st.success("Đã xóa tài khoản khỏi hệ thống vĩnh viễn!")
                     st.rerun()
 
-# ==========================================
-# MODULE 2: TRANG CHỦ & CẢNH BÁO
-# ==========================================
+    st.markdown("---")
+    # TÍNH NĂNG MỚI: BẢNG GIÁM SÁT VÀ MINH CHỨNG PHÂN QUYỀN MENU CHO QUẢN TRỊ VIÊN
+    st.subheader("6. 📊 Bảng cấu hình & Giám sát phân quyền Menu Hệ thống")
+    st.info("Mục này hiển thị ma trận phân quyền truy cập menu đang được áp dụng trực tiếp trên mã nguồn hệ thống.")
+    
+    df_quyen = pd.DataFrame([
+        {"Tên chức năng Menu": "Quản lý Hệ thống (Admin)", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "❌ Bị chặn", "Tổ trưởng chuyên môn": "❌ Bị chặn", "Giáo viên bộ môn": "❌ Bị chặn"},
+        {"Tên chức năng Menu": "Trang chủ & Cảnh báo", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "✅ Có quyền", "Tổ trưởng chuyên môn": "✅ Có quyền", "Giáo viên bộ môn": "✅ Có quyền"},
+        {"Tên chức năng Menu": "Quản lý Kho (Xem danh mục)", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "✅ Có quyền", "Tổ trưởng chuyên môn": "✅ Có quyền", "Giáo viên bộ môn": "✅ Có quyền"},
+        {"Tên chức năng Menu": "Quản lý Kho (Thêm/Sửa/Xóa)", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "✅ Có quyền", "Tổ trưởng chuyên môn": "✅ Có quyền", "Giáo viên bộ môn": "❌ Bị chặn"},
+        {"Tên chức năng Menu": "Đăng ký thiết bị PTN", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "✅ Có quyền", "Tổ trưởng chuyên môn": "✅ Có quyền", "Giáo viên bộ môn": "✅ Có quyền"},
+        {"Tên chức năng Menu": "Đánh giá chuyên môn dự giờ", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "✅ Có quyền", "Tổ trưởng chuyên môn": "✅ Có quyền", "Giáo viên bộ môn": "❌ Bị chặn"},
+        {"Tên chức năng Menu": "Kết xuất báo cáo văn bản (.docx)", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "✅ Có quyền", "Tổ trưởng chuyên môn": "✅ Có quyền", "Giáo viên bộ môn": "❌ Bị chặn"},
+        {"Tên chức năng Menu": "Đổi mật khẩu cá nhân", "Quản trị viên": "✅ Có quyền", "Ban Giám hiệu": "✅ Có quyền", "Tổ trưởng chuyên môn": "✅ Có quyền", "Giáo viên bộ môn": "✅ Có quyền"}
+    ])
+    st.table(df_quyen)
+
+# ------------------------------------------
+# MODULE: TRANG CHỦ & CẢNH BÁO
+# ------------------------------------------
 elif menu == "Trang chủ & Cảnh báo":
     st.header("📊 Bảng điều khiển (Dashboard)")
     col1, col2 = st.columns(2)
-    col1.metric("Tổng số thiết bị/Hóa chất", len(st.session_state.chemicals))
-    col2.metric("Số lượt đăng ký mượn phòng", len(st.session_state.bookings))
+    col1.metric("Tổng số thiết bị/Hóa chất hiện có", len(st.session_state.chemicals))
+    col2.metric("Số lượt giáo viên đăng ký mượn phòng", len(st.session_state.bookings))
     
     today = datetime.date.today()
     df_chem_check = st.session_state.chemicals.copy()
@@ -281,14 +311,15 @@ elif menu == "Trang chủ & Cảnh báo":
     else:
         st.success("Tất cả hóa chất và tiêu bản đều trong thời hạn sử dụng an toàn.")
 
-# ==========================================
-# MODULE 3: QUẢN LÝ KHO (VẬT TƯ)
-# ==========================================
+# ------------------------------------------
+# MODULE: QUẢN LÝ KHO (VẬT TƯ)
+# ------------------------------------------
 elif menu == "Quản lý Kho (Vật tư)":
     st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
     st.dataframe(st.session_state.chemicals, use_container_width=True)
     
-    if active_role in ["Quản trị viên", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng"]:
+    # Phân quyền thao tác Kho: Chỉ quản trị viên và các nhóm quản lý chuyên môn mới hiện form can thiệp dữ liệu
+    if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
         st.markdown("---")
         st.subheader("1. ➕ Bổ sung vật tư mới (Thủ công)")
         with st.form("add_chem_form"):
@@ -307,7 +338,7 @@ elif menu == "Quản lý Kho (Vật tư)":
                     new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Hạn sử dụng': str(han_su_dung), 'Tình trạng': tinh_trang}])
                     st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
                     save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã bổ sung thiết bị vào kho!")
+                    st.success("Đã bổ sung thiết bị vào kho đám mây!")
                     st.rerun()
 
         st.markdown("---")
@@ -325,7 +356,7 @@ elif menu == "Quản lý Kho (Vật tư)":
                     df_new_chem = pd.read_excel(uploaded_chem)
                     st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new_chem], ignore_index=True)
                     save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã đồng bộ từ Excel thành công!")
+                    st.success("Đã đồng bộ danh mục từ Excel thành công!")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Lỗi: {e}")
@@ -352,47 +383,52 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.session_state.chemicals.at[idx, 'Số lượng'] = int(edit_sl)
                     st.session_state.chemicals.at[idx, 'Tình trạng'] = edit_tt
                     save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã lưu cập nhật!")
+                    st.success("Đã lưu cập nhật vật tư!")
                     st.rerun()
                 if ic_col2.form_submit_button("❌ XÓA THIẾT BỊ NÀY"):
                     st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
                     save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã xóa thiết bị!")
+                    st.success("Đã xóa thiết bị thành công!")
                     st.rerun()
 
-# ==========================================
-# MODULE 4: ĐĂNG KÝ THIẾT BỊ
-# ==========================================
+# ------------------------------------------
+# MODULE: ĐĂNG KÝ THIẾT BỊ
+# ------------------------------------------
 elif menu == "Đăng ký thiết bị":
     st.header("📝 Đăng ký sử dụng phòng bộ môn")
     if not st.session_state.bookings.empty:
         st.dataframe(st.session_state.bookings, use_container_width=True)
     else:
-        st.info("Chưa có lịch đăng ký nào.")
+        st.info("Chưa có lịch đăng ký nào từ các giáo viên.")
         
     with st.form("booking_form"):
         col1, col2 = st.columns(2)
         with col1:
-            date = st.date_input("Ngày dạy")
+            date = st.date_input("Ngày dạy thực hành")
             buoi = st.selectbox("Buổi dạy", ["Sáng", "Chiều"])
-            period = st.selectbox("Tiết học", [1, 2, 3, 4, 5])
+            period = st.selectbox("Tiết học giảng dạy", [1, 2, 3, 4, 5])
             lop = st.text_input("Lớp (VD: 9A)")
-            subject = st.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"])
+            subject = st.selectbox("Phân môn chuyên biệt", ["Vật lý", "Hóa học", "Sinh học"])
         with col2:
-            equipment = st.multiselect("Chọn thiết bị", st.session_state.chemicals['Tên vật tư'].tolist())
+            equipment = st.multiselect("Chọn thiết bị/Hóa chất cần mượn thực nghiệm", st.session_state.chemicals['Tên vật tư'].tolist())
             
         if st.form_submit_button("Xác nhận đăng ký"):
             if lop:
                 new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': str(date), 'Buổi': buoi, 'Tiết': period, 'Lớp': lop, 'Môn': subject, 'Thiết bị': ", ".join(equipment)}])
                 st.session_state.bookings = pd.concat([st.session_state.bookings, new_book], ignore_index=True)
                 save_data('bookings', st.session_state.bookings)
-                st.success("Lịch đăng ký đã được lưu!")
+                st.success("Lịch mượn thiết bị phòng thực hành đã được lưu vĩnh viễn!")
                 st.rerun()
 
-# ==========================================
-# MODULE 5: ĐÁNH GIÁ CHUYÊN MÔN
-# ==========================================
+# ------------------------------------------
+# MODULE: ĐÁNH GIÁ CHUYÊN MÔN (Phân quyền quản lý)
+# ------------------------------------------
 elif menu == "Đánh giá chuyên môn":
+    # Chốt chặn bảo mật cứng cấp Module
+    if active_role not in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
+        st.error("⚠️ Lỗi phân quyền: Bạn không có quyền truy cập khu vực thẩm định đánh giá này!")
+        st.stop()
+        
     st.header("📋 Đánh giá năng lực thực hành")
     list_gv = st.session_state.users['Họ tên'].tolist()
     target_gv = st.selectbox("1. Chọn Giáo viên để đánh giá:", ["-- Chọn người được đánh giá --"] + list_gv)
@@ -400,21 +436,21 @@ elif menu == "Đánh giá chuyên môn":
     if target_gv != "-- Chọn người được đánh giá --":
         gv_bookings = st.session_state.bookings[st.session_state.bookings['Người đăng ký'] == target_gv]
         if gv_bookings.empty:
-            st.warning("Giáo viên này chưa đăng ký tiết dạy.")
+            st.warning("Thầy/Cô giáo này chưa đăng ký tiết học thực hành nào trên hệ thống.")
         else:
             booking_options = [f"Ngày {row['Ngày']} - Buổi {row['Buổi']} - Tiết {row['Tiết']} - Lớp {row['Lớp']} - Môn {row['Môn']}" for idx, row in gv_bookings.iterrows()]
-            target_tiet = st.selectbox("2. Chọn Tiết dự giờ:", booking_options)
+            target_tiet = st.selectbox("2. Chọn Tiết dạy thực tế dự giờ:", booking_options)
             
-            st.markdown("### 3. Chấm điểm Rubric")
-            c1 = st.slider("1. Chuẩn bị thiết bị vật tư (Tối đa 20đ)", 0, 20, 15)
-            c2 = st.slider("2. Đảm bảo an toàn PTN (Tối đa 30đ)", 0, 30, 25)
-            c3 = st.slider("3. Hướng dẫn HS (Tối đa 30đ)", 0, 30, 25)
-            c4 = st.slider("4. Đánh giá & Liên hệ PISA (Tối đa 20đ)", 0, 20, 15)
+            st.markdown("### 3. Chấm điểm Rubric chuyên môn")
+            c1 = st.slider("1. Chuẩn bị thiết bị vật tư dạy học (Tối đa 20đ)", 0, 20, 15)
+            c2 = st.slider("2. Đảm bảo an toàn phòng thực nghiệm (Tối đa 30đ)", 0, 30, 25)
+            c3 = st.slider("3. Hướng dẫn học sinh thao tác khoa học (Tối đa 30đ)", 0, 30, 25)
+            c4 = st.slider("4. Đánh giá kết quả & Liên hệ PISA thực tiễn (Tối đa 20đ)", 0, 20, 15)
             
             total = c1 + c2 + c3 + c4
-            st.markdown(f"**Tổng điểm:** {total}/100")
+            st.markdown(f"**Tổng điểm đạt được:** {total}/100")
             rank = "Tốt" if total >= 85 else "Khá" if total >= 65 else "Đạt" if total >= 50 else "Chưa đạt"
-            comment = st.text_area("Nhận xét:")
+            comment = st.text_area("Nhận xét ưu điểm & Tồn tại cốt lõi:")
             
             if st.button("Lưu hồ sơ đánh giá"):
                 record = {
@@ -424,18 +460,23 @@ elif menu == "Đánh giá chuyên môn":
                 }
                 st.session_state.evaluations.append(record)
                 save_data('evaluations', pd.DataFrame(st.session_state.evaluations))
-                st.success("Hồ sơ đã được lưu!")
+                st.success("Hồ sơ đánh giá chuyên môn đã được đồng bộ lên Google Sheets!")
 
-# ==========================================
-# MODULE 6: XUẤT BÁO CÁO (.DOCX)
-# ==========================================
+# ------------------------------------------
+# MODULE: XUẤT BÁO CÁO TỰ ĐỘNG (Phân quyền quản lý)
+# ------------------------------------------
 elif menu == "Xuất báo cáo (.docx)":
-    st.header("🖨️ Kết xuất hồ sơ minh chứng")
+    # Chốt chặn bảo mật cứng cấp Module
+    if active_role not in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
+        st.error("⚠️ Lỗi phân quyền: Bạn không có quyền truy cập khu vực kết xuất văn bản này!")
+        st.stop()
+        
+    st.header("🖨️ Kết xuất hồ sơ minh chứng hành chính")
     if len(st.session_state.evaluations) == 0:
-        st.info("Chưa có hồ sơ đánh giá.")
+        st.info("Chưa ghi nhận hồ sơ đánh giá năng lực thực hành nào để kết xuất.")
     else:
         st.dataframe(pd.DataFrame(st.session_state.evaluations), use_container_width=True)
-        selected_idx = st.selectbox("Chọn hồ sơ:", range(len(st.session_state.evaluations)), format_func=lambda x: f"Đánh giá: {st.session_state.evaluations[x]['Người được đánh giá']} ({st.session_state.evaluations[x]['Tiết dạy']})")
+        selected_idx = st.selectbox("Chọn hồ sơ kết xuất văn bản:", range(len(st.session_state.evaluations)), format_func=lambda x: f"Đánh giá: {st.session_state.evaluations[x]['Người được đánh giá']} ({st.session_state.evaluations[x]['Tiết dạy']})")
         target_record = st.session_state.evaluations[selected_idx]
         
         def create_docx(data, school_info):
@@ -444,16 +485,16 @@ elif menu == "Xuất báo cáo (.docx)":
             doc.add_heading(f"TRƯỜNG {school_info['ten_truong'].upper()}", 2)
             doc.add_paragraph(f"Năm học: {school_info['nam_hoc']}")
             doc.add_paragraph("-----------------------------------")
-            doc.add_heading('PHIẾU ĐÁNH GIÁ NĂNG LỰC THỰC HÀNH', 0)
-            doc.add_paragraph(f"Ngày lập: {data['Ngày chấm']}")
-            doc.add_paragraph(f"Người đánh giá: {data['Người đánh giá']} ({data['Chức vụ người đánh giá']})")
-            doc.add_heading('Thông tin tiết dạy', level=1)
-            doc.add_paragraph(f"- Giáo viên: {data['Người được đánh giá']}")
-            doc.add_paragraph(f"- Lịch học: {data['Tiết dạy']}")
-            doc.add_heading('Kết quả', level=1)
-            doc.add_paragraph(f"- Điểm: {data['Tổng điểm']}/100")
-            doc.add_paragraph(f"- Xếp loại: {data['Xếp loại']}")
-            doc.add_heading('Nhận xét', level=1)
+            doc.add_heading('PHIẾU ĐÁNH GIÁ NĂNG LỰC THỰC HÀNH KHTN', 0)
+            doc.add_paragraph(f"Ngày lập hồ sơ: {data['Ngày chấm']}")
+            doc.add_paragraph(f"Cán bộ đánh giá: {data['Người đánh giá']} (Chức vụ: {data['Chức vụ người đánh giá']})")
+            doc.add_heading('Thông tin tiết dạy thực nghiệm', level=1)
+            doc.add_paragraph(f"- Giáo viên bộ môn giảng dạy: {data['Người được đánh giá']}")
+            doc.add_paragraph(f"- Chi tiết lịch học: {data['Tiết dạy']}")
+            doc.add_heading('Kết quả kiểm tra thi đua', level=1)
+            doc.add_paragraph(f"- Tổng số điểm kiểm định: {data['Tổng điểm']}/100 điểm")
+            doc.add_paragraph(f"- Xếp loại chung chuyên môn: {data['Xếp loại']}")
+            doc.add_heading('Nhận xét kiến nghị cụ thể', level=1)
             doc.add_paragraph(data['Nhận xét'])
             bio = BytesIO()
             doc.save(bio)
@@ -461,12 +502,12 @@ elif menu == "Xuất báo cáo (.docx)":
 
         st.download_button("📄 Tải xuống văn bản (.docx)", data=create_docx(target_record, st.session_state.school_info), file_name=f"PhieuDanhGia_{target_record['Người được đánh giá']}.docx")
 
-# ==========================================
-# MODULE 7: ĐỔI MẬT KHẨU CÁ NHÂN (TÍNH NĂNG MỚI BỔ SUNG)
-# ==========================================
+# ------------------------------------------
+# MODULE: ĐỔI MẬT KHẨU CÁ NHÂN (Tất cả mọi người)
+# ------------------------------------------
 elif menu == "Đổi mật khẩu":
     st.header("🔑 Đổi mật khẩu cá nhân")
-    st.info("Lưu ý: Sau khi đổi mật khẩu thành công, vui lòng ghi nhớ mật khẩu mới cho các lần đăng nhập sau.")
+    st.info("Lưu ý: Sau khi đổi mật khẩu thành công, hệ thống sẽ đồng bộ vĩnh viễn dữ liệu mới trực tiếp lên đám mây.")
     with st.form("change_pass_form"):
         old_pass = st.text_input("Mật khẩu hiện tại", type="password")
         new_pass = st.text_input("Mật khẩu mới", type="password")
@@ -475,13 +516,15 @@ elif menu == "Đổi mật khẩu":
         if st.form_submit_button("Xác nhận đổi mật khẩu"):
             if str(old_pass) == str(current_user['Mật khẩu']):
                 if str(new_pass) == str(re_new_pass):
+                    # Tìm đúng vị trí index tài khoản trong DataFrame người dùng để sửa đổi
                     idx = st.session_state.users[st.session_state.users['Tài khoản'] == current_user['Tài khoản']].index[0]
                     st.session_state.users.at[idx, 'Mật khẩu'] = str(new_pass)
                     save_data('users', st.session_state.users)
-                    # Cập nhật ngay session hiện tại để người dùng không bị văng ra sai pass
+                    
+                    # Cập nhật ngay lập tức cho session hoạt động hiện tại để không bị đẩy ra ngoài
                     st.session_state.current_user['Mật khẩu'] = str(new_pass)
-                    st.success("✅ Đổi mật khẩu thành công! Cơ sở dữ liệu đã được cập nhật.")
+                    st.success("✅ Đổi mật khẩu thành công! Dữ liệu tài khoản đã được cập nhật đồng bộ vĩnh viễn.")
                 else:
-                    st.error("❌ Mật khẩu mới và phần nhập lại không khớp nhau!")
+                    st.error("❌ Mật khẩu mới và phần nhập lại chưa trùng khớp với nhau!")
             else:
-                st.error("❌ Mật khẩu hiện tại không đúng!")
+                st.error("❌ Mật khẩu hiện tại nhập vào không chính xác!")
