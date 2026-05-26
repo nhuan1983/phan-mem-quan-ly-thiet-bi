@@ -11,7 +11,6 @@ import plotly.express as px
 # ==========================================
 st.set_page_config(page_title="Hệ thống Quản lý KHTN", layout="wide")
 
-# CSS Ẩn thanh công cụ mặc định của Streamlit
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -38,7 +37,6 @@ if "gspread_creds" in st.secrets and "spreadsheet_key" in st.secrets:
     except Exception as e:
         st.sidebar.error(f"⚠️ Lỗi kết nối Google Sheets: {e}")
 
-# --- CÁC HÀM ĐỌC/GHI DỮ LIỆU THÔNG MINH ---
 def load_data(sheet_name, default_df):
     if USE_CLOUD_DB:
         try:
@@ -76,7 +74,7 @@ def save_data(sheet_name, df_to_save):
             st.error(f"Không thể đồng bộ lên Google Sheets: {e}")
 
 # ==========================================
-# KHỞI TẠO HOẶC TẢI CƠ SỞ DỮ LIỆU
+# KHỞI TẠO HOẶC TẢI CƠ SỞ DỮ LIỆU (ĐÃ VIỆT HÓA NGÀY THÁNG)
 # ==========================================
 default_school = pd.DataFrame([{'ten_truong': 'TH&THCS Nam Thượng', 'don_vi_chu_quan': 'Ủy ban nhân dân xã Hợp Kim', 'nam_hoc': '2025-2026'}])
 df_school_db = load_data('school_info', default_school)
@@ -97,7 +95,7 @@ default_chem = pd.DataFrame({
     'Tên vật tư': ['Axit Sunfuric (H2SO4)', 'Natri Hidroxit (NaOH)', 'Bộ Khúc xạ ánh sáng', 'Tiêu bản tế bào'],
     'Phân môn': ['Hóa học', 'Hóa học', 'Vật lý', 'Sinh học'],
     'Số lượng': [5, 10, 3, 20],
-    'Hạn sử dụng': ['2026-06-15', '2026-04-10', 'None', '2027-01-01'],
+    'Hạn sử dụng': ['15/06/2026', '10/04/2026', '', '01/01/2027'], # Định dạng DD/MM/YYYY
     'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt']
 })
 if 'chemicals' not in st.session_state:
@@ -286,24 +284,26 @@ if menu == "Quản lý Hệ thống (Admin)":
     st.table(df_quyen)
 
 # ------------------------------------------
-# 2. TRANG CHỦ & CẢNH BÁO (BIỂU ĐỒ + ẨN CẢNH BÁO)
+# 2. TRANG CHỦ & CẢNH BÁO
 # ------------------------------------------
 elif menu == "Trang chủ & Cảnh báo":
     st.header("📊 Bảng điều khiển Tổng quan (Dashboard)")
     
-    # Tính toán dữ liệu cảnh báo an toàn
+    # Tính toán dữ liệu cảnh báo an toàn (Đã tối ưu cho định dạng DD/MM/YYYY)
     today = pd.Timestamp.today().normalize()
     df_chem_check = st.session_state.chemicals.copy()
-    df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], errors='coerce')
+    
+    # Sử dụng dayfirst=True để Pandas nhận diện chuẩn ngày Việt Nam
+    df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], dayfirst=True, errors='coerce')
     df_exp = df_chem_check.dropna(subset=['Hạn sử dụng'])
     
     if not df_exp.empty:
         df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
+        # Hiển thị lại bằng định dạng DD/MM/YYYY
         df_warning['Hạn sử dụng'] = df_warning['Hạn sử dụng'].dt.strftime('%d/%m/%Y')
     else:
         df_warning = pd.DataFrame()
         
-    # Hàng 1: Chỉ số tổng quan
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("📦 Số lượng mã vật tư", len(st.session_state.chemicals))
     col2.metric("📝 Tổng lượt mượn PTN", len(st.session_state.bookings))
@@ -311,7 +311,6 @@ elif menu == "Trang chủ & Cảnh báo":
     col4.metric("⚠️ Vật tư sắp hết hạn", len(df_warning))
     st.markdown("---")
     
-    # Hàng 2: Biểu đồ trực quan (Plotly)
     chart_col1, chart_col2 = st.columns(2)
     with chart_col1:
         st.subheader("Cơ cấu Vật tư theo Phân môn")
@@ -338,7 +337,6 @@ elif menu == "Trang chủ & Cảnh báo":
             
     st.markdown("---")
     
-    # Hàng 3: Cảnh báo ẩn (Expander)
     st.subheader("⚠️ Cảnh báo An toàn (Hóa chất/Mẫu vật)")
     if not df_warning.empty:
         with st.expander(f"🚨 Hệ thống phát hiện {len(df_warning)} vật tư sắp hoặc đã hết hạn! (Nhấn vào đây để xem chi tiết)", expanded=False):
@@ -365,12 +363,15 @@ elif menu == "Quản lý Kho (Vật tư)":
             so_luong = c4.number_input("Số lượng", min_value=1, value=1)
             
             c5, c6 = st.columns(2)
-            han_su_dung = c5.date_input("Hạn sử dụng", value=None)
+            # Ép bộ chọn lịch theo chuẩn DD/MM/YYYY
+            han_su_dung = c5.date_input("Hạn sử dụng", value=None, format="DD/MM/YYYY")
             tinh_trang = c6.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
             
             if st.form_submit_button("Lưu vào kho"):
                 if ma_vt and ten_vt:
-                    new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Hạn sử dụng': str(han_su_dung), 'Tình trạng': tinh_trang}])
+                    # Chuyển đổi ngày tháng thành chuỗi theo chuẩn Việt Nam trước khi lưu
+                    han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
+                    new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Hạn sử dụng': han_str, 'Tình trạng': tinh_trang}])
                     st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
                     save_data('chemicals', st.session_state.chemicals)
                     st.success("Đã bổ sung thiết bị vào kho!")
@@ -378,7 +379,7 @@ elif menu == "Quản lý Kho (Vật tư)":
 
         st.markdown("---")
         st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
-        df_mau_vt = pd.DataFrame({'Mã vật tư': ['VL02'], 'Tên vật tư': ['Ampe kế'], 'Phân môn': ['Vật lý'], 'Số lượng': [15], 'Hạn sử dụng': [''], 'Tình trạng': ['Tốt']})
+        df_mau_vt = pd.DataFrame({'Mã vật tư': ['VL02'], 'Tên vật tư': ['Ampe kế'], 'Phân môn': ['Vật lý'], 'Số lượng': [15], 'Hạn sử dụng': ['15/09/2026'], 'Tình trạng': ['Tốt']})
         output_vt = BytesIO()
         with pd.ExcelWriter(output_vt, engine='openpyxl') as writer:
             df_mau_vt.to_excel(writer, index=False)
@@ -388,6 +389,10 @@ elif menu == "Quản lý Kho (Vật tư)":
         if uploaded_chem is not None and st.button("Tiến hành nhập dữ liệu"):
             try:
                 df_new = pd.read_excel(uploaded_chem)
+                # Đảm bảo ép kiểu chuỗi để tránh ngày tháng bị lỗi định dạng từ Excel
+                for col in df_new.columns:
+                    if df_new[col].dtype == 'object' or 'Hạn sử dụng' in col:
+                        df_new[col] = df_new[col].astype(str).replace('nan', '')
                 st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new], ignore_index=True)
                 save_data('chemicals', st.session_state.chemicals)
                 st.success("Đã đồng bộ từ Excel thành công!")
@@ -438,7 +443,8 @@ elif menu == "Đăng ký thiết bị":
     with st.form("booking_form"):
         col1, col2 = st.columns(2)
         with col1:
-            date = st.date_input("Ngày dạy thực hành")
+            # Ép bộ chọn lịch theo chuẩn DD/MM/YYYY
+            date = st.date_input("Ngày dạy thực hành", format="DD/MM/YYYY")
             buoi = st.selectbox("Buổi dạy", ["Sáng", "Chiều"])
             period = st.selectbox("Tiết học giảng dạy", [1, 2, 3, 4, 5])
             lop = st.text_input("Lớp (VD: 9A)")
@@ -448,7 +454,9 @@ elif menu == "Đăng ký thiết bị":
             
         if st.form_submit_button("Xác nhận đăng ký"):
             if lop:
-                new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': str(date), 'Buổi': buoi, 'Tiết': period, 'Lớp': lop, 'Môn': subject, 'Thiết bị': ", ".join(equipment)}])
+                # Chuyển đổi đối tượng lịch thành chuỗi văn bản theo chuẩn DD/MM/YYYY
+                date_str = date.strftime('%d/%m/%Y')
+                new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': date_str, 'Buổi': buoi, 'Tiết': period, 'Lớp': lop, 'Môn': subject, 'Thiết bị': ", ".join(equipment)}])
                 st.session_state.bookings = pd.concat([st.session_state.bookings, new_book], ignore_index=True)
                 save_data('bookings', st.session_state.bookings)
                 st.success("Lịch đăng ký đã được lưu!")
@@ -489,6 +497,7 @@ elif menu == "Đánh giá chuyên môn":
                 record = {
                     "Người được đánh giá": target_gv, "Tiết dạy": target_tiet, "Người đánh giá": current_user['Họ tên'],
                     "Chức vụ người đánh giá": active_role, "Tổng điểm": total, "Xếp loại": rank, "Nhận xét": comment,
+                    # Ngày chấm hệ thống tự lấy hiện tại, ép chuẩn DD/MM/YYYY
                     "Ngày chấm": datetime.date.today().strftime("%d/%m/%Y")
                 }
                 st.session_state.evaluations.append(record)
