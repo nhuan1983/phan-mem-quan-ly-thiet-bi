@@ -261,17 +261,7 @@ if menu == "Quản lý Hệ thống (Admin)":
             edit_roles = st.multiselect("Phân quyền", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"], default=current_roles)
             
             btn_col1, btn_col2 = st.columns(2)
-            if btn_col1.form_submit_button("💾 Lưu thay đổi"):
-                idx = st.session_state.users[st.session_state.users['Tài khoản'] == selected_user].index[0]
-                st.session_state.users.at[idx, 'Họ tên'] = edit_name
-                st.session_state.users.at[idx, 'Mật khẩu'] = edit_pwd
-                st.session_state.users.at[idx, 'Vai trò'] = edit_roles
-                
-                # Gọi lệnh lưu đồng bộ lên Cloud
-                save_data('users', st.session_state.users)
-                st.success("✅ Đã cập nhật tài khoản lên hệ thống đám mây!")
-                st.rerun()
-                
+                            
             if btn_col2.form_submit_button("❌ Xóa tài khoản"):
                 if selected_user == current_user['Tài khoản']:
                     st.error("⚠️ Không thể tự xóa tài khoản của chính mình khi đang đăng nhập!")
