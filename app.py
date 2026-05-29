@@ -347,7 +347,7 @@ file_name="Du_lieu_Kho_Backup.xlsx",
 mime="application/vnd.ms-excel")
 st.info("💡 Mẹo: Trước khi tắt trình duyệt, thầy hãy nhấn nút này để lưu dữ liệu. Khi mở lại phần mềm, thầy dùng file này tải lên ở mục 'Nhập hàng loạt' để khôi phục trạng thái cũ.")
             
-    if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
+if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
         st.markdown("---")
         st.subheader("1. ➕ Bổ sung vật tư mới")
         with st.form("add_chem_form"):
