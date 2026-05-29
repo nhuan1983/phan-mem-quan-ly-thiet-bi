@@ -117,6 +117,7 @@ default_chem = pd.DataFrame({
     'Tên vật tư': ['Axit Sunfuric (H2SO4)', 'Natri Hidroxit (NaOH)', 'Bộ Khúc xạ ánh sáng', 'Tiêu bản tế bào', 'Kính hiển vi quang học'],
     'Phân môn': ['Hóa học', 'Hóa học', 'Vật lý', 'Sinh học', 'Dùng chung'],
     'Số lượng': [5, 10, 3, 20, 5],
+    'Đơn vị': ['ml', 'gam', 'bộ', 'cái', 'cái'], 
     'Hạn sử dụng': ['15/06/2026', '10/04/2026', '', '01/01/2027', ''],
     'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt', 'Tốt']
 })
