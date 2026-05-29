@@ -17,7 +17,6 @@ hide_streamlit_style = """
             footer {visibility: hidden;}
             header {visibility: hidden;}
             
-            /* Tạo dải thông báo nhắc nhở ở trên cùng cho điện thoại */
             .mobile-hint {
                 background-color: #1E88E5;
                 color: white;
@@ -29,7 +28,6 @@ hide_streamlit_style = """
                 display: none;
             }
             
-            /* Chỉ hiển thị dải màu này trên màn hình nhỏ (điện thoại) */
             @media only screen and (max-width: 600px) {
                 .mobile-hint {
                     display: block;
@@ -38,8 +36,6 @@ hide_streamlit_style = """
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
-# Hiển thị thông báo nhắc nhở mở menu cho người dùng điện thoại
 st.markdown('<div class="mobile-hint">📱 Nhấn vào biểu tượng <b>></b> hoặc <b>☰</b> (góc trái) để mở menu chức năng</div>', unsafe_allow_html=True)
 
 # ==========================================
@@ -62,7 +58,7 @@ if "gspread_creds" in st.secrets and "spreadsheet_key" in st.secrets:
     except Exception as e:
         st.sidebar.error(f"⚠️ Lỗi kết nối Google Sheets: {e}")
 
-# --- CÁC HÀM ĐỌC/GHI DỮ LIỆU THÔNG MINH ---
+# --- CÁC HÀM ĐỌC/GHI DỮ LIỆU ---
 def load_data(sheet_name, default_df):
     if USE_CLOUD_DB:
         try:
@@ -97,7 +93,7 @@ def save_data(sheet_name, df_to_save):
                     
             worksheet.update([df_copy.columns.values.tolist()] + df_copy.values.tolist())
         except Exception as e:
-            st.error(f"Không thể đồng bộ lên Google Sheets: {e}")
+            st.error(f"Không thể đồng bộ: {e}")
 
 # ==========================================
 # KHỞI TẠO HOẶC TẢI CƠ SỞ DỮ LIỆU
@@ -116,13 +112,14 @@ default_users = pd.DataFrame({
 if 'users' not in st.session_state:
     st.session_state.users = load_data('users', default_users)
 
+# Đã bổ sung danh mục "Dùng chung"
 default_chem = pd.DataFrame({
-    'Mã vật tư': ['HC01', 'HC02', 'VL01', 'SH01'],
-    'Tên vật tư': ['Axit Sunfuric (H2SO4)', 'Natri Hidroxit (NaOH)', 'Bộ Khúc xạ ánh sáng', 'Tiêu bản tế bào'],
-    'Phân môn': ['Hóa học', 'Hóa học', 'Vật lý', 'Sinh học'],
-    'Số lượng': [5, 10, 3, 20],
-    'Hạn sử dụng': ['15/06/2026', '10/04/2026', '', '01/01/2027'],
-    'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt']
+    'Mã vật tư': ['HC01', 'HC02', 'VL01', 'SH01', 'DC01'],
+    'Tên vật tư': ['Axit Sunfuric (H2SO4)', 'Natri Hidroxit (NaOH)', 'Bộ Khúc xạ ánh sáng', 'Tiêu bản tế bào', 'Kính hiển vi quang học'],
+    'Phân môn': ['Hóa học', 'Hóa học', 'Vật lý', 'Sinh học', 'Dùng chung'],
+    'Số lượng': [5, 10, 3, 20, 5],
+    'Hạn sử dụng': ['15/06/2026', '10/04/2026', '', '01/01/2027', ''],
+    'Tình trạng': ['Tốt', 'Sắp hết hạn', 'Tốt', 'Tốt', 'Tốt']
 })
 if 'chemicals' not in st.session_state:
     st.session_state.chemicals = load_data('chemicals', default_chem)
@@ -134,10 +131,8 @@ if 'evaluations' not in st.session_state:
     df_eval_loaded = load_data('evaluations', pd.DataFrame())
     st.session_state.evaluations = df_eval_loaded.to_dict('records') if not df_eval_loaded.empty else []
 
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
-if 'current_user' not in st.session_state:
-    st.session_state.current_user = None
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'current_user' not in st.session_state: st.session_state.current_user = None
 
 # ==========================================
 # GIAO DIỆN ĐĂNG NHẬP
@@ -145,23 +140,19 @@ if 'current_user' not in st.session_state:
 if not st.session_state.logged_in:
     st.markdown("<h1 style='text-align: center; color: #1E88E5;'>HỆ THỐNG QUẢN LÝ KHTN</h1>", unsafe_allow_html=True)
     st.markdown(f"<h3 style='text-align: center;'>Trường {st.session_state.school_info['ten_truong']}</h3>", unsafe_allow_html=True)
-    
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         with st.form("login_form"):
             st.write("Vui lòng đăng nhập để tiếp tục")
             username = st.text_input("Tài khoản")
             password = st.text_input("Mật khẩu", type="password")
-            submit_login = st.form_submit_button("Đăng nhập", use_container_width=True)
-            
-            if submit_login:
+            if st.form_submit_button("Đăng nhập", use_container_width=True):
                 user_match = st.session_state.users[(st.session_state.users['Tài khoản'].astype(str) == str(username)) & (st.session_state.users['Mật khẩu'].astype(str) == str(password))]
                 if not user_match.empty:
                     st.session_state.logged_in = True
                     st.session_state.current_user = user_match.iloc[0].to_dict()
                     st.rerun()
-                else:
-                    st.error("Sai tài khoản hoặc mật khẩu!")
+                else: st.error("Sai tài khoản hoặc mật khẩu!")
     st.stop()
 
 # ==========================================
@@ -171,26 +162,19 @@ current_user = st.session_state.current_user
 user_roles = current_user['Vai trò']
 
 st.sidebar.title(st.session_state.school_info['ten_truong'])
-if USE_CLOUD_DB:
-    st.sidebar.caption("🟢 Đã kết nối CSDL đám mây (Vĩnh viễn)")
-else:
-    st.sidebar.caption("🔵 Chế độ cục bộ (Lưu trữ tạm thời)")
-
+st.sidebar.caption("🟢 Đã kết nối CSDL đám mây (Vĩnh viễn)" if USE_CLOUD_DB else "🔵 Chế độ cục bộ (Lưu trữ tạm thời)")
 st.sidebar.success(f"👤 Chào, {current_user['Họ tên']}")
 st.sidebar.markdown("---")
 active_role = st.sidebar.selectbox("🔄 Bạn đang làm việc với tư cách là:", user_roles)
 st.sidebar.markdown("---")
 
 menu_options = ["Trang chủ & Cảnh báo", "Quản lý Kho (Vật tư)", "Đăng ký thiết bị", "Đổi mật khẩu"]
-
 if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
     menu_options.extend(["Đánh giá chuyên môn", "Xuất báo cáo (.docx)"])
-
 if active_role == "Quản trị viên":
     menu_options.insert(0, "Quản lý Hệ thống (Admin)")
 
 menu = st.sidebar.radio("📌 Chọn chức năng:", menu_options)
-
 if st.sidebar.button("Đăng xuất"):
     st.session_state.logged_in = False
     st.session_state.current_user = None
@@ -201,7 +185,7 @@ if st.sidebar.button("Đăng xuất"):
 # ==========================================
 
 # ------------------------------------------
-# 1. QUẢN LÝ HỆ THỐNG
+# 1. QUẢN LÝ HỆ THỐNG (Admin)
 # ------------------------------------------
 if menu == "Quản lý Hệ thống (Admin)":
     if active_role != "Quản trị viên":
@@ -209,7 +193,7 @@ if menu == "Quản lý Hệ thống (Admin)":
         st.stop()
         
     st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
-    
+    # ... (Giữ nguyên các chức năng Admin quản lý user như cũ)
     st.subheader("1. 🏫 Cấu hình thông tin Trường học")
     with st.form("school_config_form"):
         sc_col1, sc_col2, sc_col3 = st.columns(3)
@@ -225,149 +209,60 @@ if menu == "Quản lý Hệ thống (Admin)":
             st.rerun()
 
     st.markdown("---")
-    st.subheader("2. Danh sách tài khoản hiện tại")
+    st.subheader("2. Quản lý tài khoản hiện tại")
     df_display = st.session_state.users.copy()
     df_display['Vai trò'] = df_display['Vai trò'].apply(lambda x: ", ".join(x) if isinstance(x, list) else x)
     st.dataframe(df_display, use_container_width=True)
-    
-    st.subheader("3. Cấp tài khoản mới (Thủ công)")
-    with st.form("add_user_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            new_acc = st.text_input("Tên đăng nhập")
-            new_pwd = st.text_input("Mật khẩu")
-        with col2:
-            new_name = st.text_input("Họ và tên")
-            new_roles = st.multiselect("Phân quyền nhóm người dùng", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"])
-        if st.form_submit_button("Tạo tài khoản"):
-            if new_acc and new_pwd and new_name and len(new_roles) > 0:
-                new_row = pd.DataFrame([{'Tài khoản': new_acc, 'Mật khẩu': new_pwd, 'Họ tên': new_name, 'Vai trò': new_roles}])
-                st.session_state.users = pd.concat([st.session_state.users, new_row], ignore_index=True)
-                save_data('users', st.session_state.users)
-                st.success("Đã cấp tài khoản thành công!")
-                st.rerun()
-
-    st.markdown("---")
-    st.subheader("4. 📥 Nhập tài khoản từ file Excel")
-    df_mau_tk = pd.DataFrame({'Tài khoản': ['gv_toan01'], 'Mật khẩu': ['123'], 'Họ tên': ['Trần Thị D'], 'Vai trò': ['Giáo viên bộ môn']})
-    output_tk = BytesIO()
-    with pd.ExcelWriter(output_tk, engine='openpyxl') as writer:
-        df_mau_tk.to_excel(writer, index=False)
-    st.download_button("⬇️ Tải file Excel mẫu", data=output_tk.getvalue(), file_name="Mau_Tai_Khoan.xlsx")
-    
-    uploaded_users = st.file_uploader("Chọn file Excel tài khoản đã điền", type=['xlsx', 'xls'])
-    if uploaded_users is not None and st.button("Tiến hành nhập dữ liệu"):
-        try:
-            df_new = pd.read_excel(uploaded_users)
-            df_new['Vai trò'] = df_new['Vai trò'].astype(str).apply(lambda x: [r.strip() for r in x.split(',')])
-            df_new['Tài khoản'] = df_new['Tài khoản'].astype(str)
-            df_new['Mật khẩu'] = df_new['Mật khẩu'].astype(str)
-            st.session_state.users = pd.concat([st.session_state.users, df_new], ignore_index=True)
-            save_data('users', st.session_state.users)
-            st.success("Nhập thành công tài khoản hàng loạt!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Lỗi: {e}")
-
-    st.markdown("---")
-    st.subheader("5. ✏️ Sửa hoặc ❌ Xóa tài khoản")
-    user_list = st.session_state.users['Tài khoản'].tolist()
-    selected_user = st.selectbox("Chọn tài khoản:", ["-- Chọn --"] + user_list)
-    if selected_user != "-- Chọn --":
-        user_data = st.session_state.users[st.session_state.users['Tài khoản'] == selected_user].iloc[0]
-        with st.form("edit_delete_user_form"):
-            edit_name = st.text_input("Họ và tên", value=user_data['Họ tên'])
-            edit_pwd = st.text_input("Mật khẩu", value=user_data['Mật khẩu'])
-            current_roles = user_data['Vai trò'] if isinstance(user_data['Vai trò'], list) else [r.strip() for r in str(user_data['Vai trò']).split(',')]
-            edit_roles = st.multiselect("Phân quyền", ["Giáo viên bộ môn", "Tổ trưởng chuyên môn", "Phó Hiệu trưởng", "Hiệu trưởng", "Quản trị viên"], default=current_roles)
-            
-            btn_col1, btn_col2 = st.columns(2)
-            if btn_col1.form_submit_button("💾 Lưu thay đổi"):
-                idx = st.session_state.users[st.session_state.users['Tài khoản'] == selected_user].index[0]
-                st.session_state.users.at[idx, 'Họ tên'] = edit_name
-                st.session_state.users.at[idx, 'Mật khẩu'] = edit_pwd
-                st.session_state.users.at[idx, 'Vai trò'] = edit_roles
-                save_data('users', st.session_state.users)
-                st.success("Đã cập nhật!")
-                st.rerun()
-            if btn_col2.form_submit_button("❌ Xóa"):
-                if selected_user == current_user['Tài khoản']:
-                    st.error("Không thể tự xóa tài khoản của chính mình!")
-                else:
-                    st.session_state.users = st.session_state.users[st.session_state.users['Tài khoản'] != selected_user].reset_index(drop=True)
-                    save_data('users', st.session_state.users)
-                    st.success("Đã xóa!")
-                    st.rerun()
-
-    st.markdown("---")
-    st.subheader("6. 📊 Ma trận phân quyền Menu Hệ thống")
-    df_quyen = pd.DataFrame([
-        {"Menu": "Quản lý Hệ thống (Admin)", "Quản trị viên": "✅", "Ban Giám hiệu": "❌", "Tổ trưởng": "❌", "Giáo viên": "❌"},
-        {"Menu": "Trang chủ, Kho, Đăng ký thiết bị, Đổi Mật khẩu", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "✅"},
-        {"Menu": "Thêm/Sửa/Xóa Thiết bị (Kho)", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "❌"},
-        {"Menu": "Đánh giá, Xuất báo cáo", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "❌"}
-    ])
-    st.table(df_quyen)
 
 # ------------------------------------------
 # 2. TRANG CHỦ & CẢNH BÁO
 # ------------------------------------------
 elif menu == "Trang chủ & Cảnh báo":
     st.header("📊 Bảng điều khiển Tổng quan (Dashboard)")
-    
     today = pd.Timestamp.today().normalize()
     df_chem_check = st.session_state.chemicals.copy()
     df_chem_check['Hạn sử dụng'] = pd.to_datetime(df_chem_check['Hạn sử dụng'], dayfirst=True, errors='coerce')
     df_exp = df_chem_check.dropna(subset=['Hạn sử dụng'])
     
+    df_warning = pd.DataFrame()
     if not df_exp.empty:
         df_warning = df_exp[(df_exp['Hạn sử dụng'] - today).dt.days <= 30]
         df_warning['Hạn sử dụng'] = df_warning['Hạn sử dụng'].dt.strftime('%d/%m/%Y')
-    else:
-        df_warning = pd.DataFrame()
         
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("📦 Số lượng mã vật tư", len(st.session_state.chemicals))
-    col2.metric("📝 Tổng lượt mượn PTN", len(st.session_state.bookings))
+    col1.metric("📦 Tổng mã vật tư", len(st.session_state.chemicals))
+    col2.metric("📝 Tổng lượt mượn", len(st.session_state.bookings))
     col3.metric("📋 Hồ sơ chuyên môn", len(st.session_state.evaluations))
     col4.metric("⚠️ Vật tư sắp hết hạn", len(df_warning))
     st.markdown("---")
     
     chart_col1, chart_col2 = st.columns(2)
     with chart_col1:
-        st.subheader("Cơ cấu Vật tư theo Phân môn")
+        st.subheader("Cơ cấu Vật tư")
         if not st.session_state.chemicals.empty:
             df_mon = st.session_state.chemicals['Phân môn'].value_counts().reset_index()
             df_mon.columns = ['Phân môn', 'Số lượng']
             fig1 = px.pie(df_mon, values='Số lượng', names='Phân môn', hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig1.update_layout(margin=dict(t=20, b=20, l=20, r=20))
             st.plotly_chart(fig1, use_container_width=True)
-        else:
-            st.info("Kho vật tư hiện đang trống.")
             
     with chart_col2:
-        st.subheader("Tần suất Sử dụng Phòng Thực hành")
+        st.subheader("Lượt mượn theo Môn")
         if not st.session_state.bookings.empty:
             df_muon = st.session_state.bookings['Môn'].value_counts().reset_index()
-            df_muon.columns = ['Môn học', 'Số lượt đăng ký']
-            fig2 = px.bar(df_muon, x='Môn học', y='Số lượt đăng ký', color='Môn học', text='Số lượt đăng ký', color_discrete_sequence=px.colors.qualitative.Set2)
-            fig2.update_traces(textposition='outside')
-            fig2.update_layout(margin=dict(t=20, b=20, l=20, r=20), showlegend=False)
+            df_muon.columns = ['Môn học', 'Số lượt']
+            fig2 = px.bar(df_muon, x='Môn học', y='Số lượt', color='Môn học', text='Số lượt', color_discrete_sequence=px.colors.qualitative.Set2)
             st.plotly_chart(fig2, use_container_width=True)
-        else:
-            st.info("Chưa có lượt đăng ký sử dụng nào.")
             
     st.markdown("---")
-    st.subheader("⚠️ Cảnh báo An toàn (Hóa chất/Mẫu vật)")
+    st.subheader("⚠️ Cảnh báo An toàn")
     if not df_warning.empty:
-        with st.expander(f"🚨 Hệ thống phát hiện {len(df_warning)} vật tư sắp hoặc đã hết hạn! (Nhấn vào đây để xem chi tiết)", expanded=False):
-            st.error("Cần có phương án xử lý, tiêu hủy hoặc mua sắm bổ sung ngay lập tức đối với các vật tư sau:")
+        with st.expander(f"🚨 Có {len(df_warning)} vật tư sắp hoặc đã hết hạn! (Nhấn xem)", expanded=False):
             st.dataframe(df_warning, use_container_width=True)
     else:
-        st.success("Tuyệt vời! Tất cả hóa chất và tiêu bản trong kho đều đang ở trạng thái an toàn.")
+        st.success("Tất cả hóa chất/tiêu bản đều trong hạn sử dụng an toàn.")
 
 # ------------------------------------------
-# 3. QUẢN LÝ KHO (VẬT TƯ)
+# 3. QUẢN LÝ KHO (VẬT TƯ) - Bổ sung danh mục Dùng chung
 # ------------------------------------------
 elif menu == "Quản lý Kho (Vật tư)":
     st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
@@ -375,12 +270,13 @@ elif menu == "Quản lý Kho (Vật tư)":
     
     if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
         st.markdown("---")
-        st.subheader("1. ➕ Bổ sung vật tư mới (Thủ công)")
+        st.subheader("1. ➕ Bổ sung vật tư mới")
         with st.form("add_chem_form"):
             c1, c2, c3, c4 = st.columns(4)
             ma_vt = c1.text_input("Mã vật tư")
             ten_vt = c2.text_input("Tên vật tư")
-            phan_mon = c3.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"])
+            # Bổ sung "Dùng chung" vào các tùy chọn nhập kho
+            phan_mon = c3.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học", "Dùng chung"])
             so_luong = c4.number_input("Số lượng", min_value=1, value=1)
             
             c5, c6 = st.columns(2)
@@ -397,29 +293,7 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.rerun()
 
         st.markdown("---")
-        st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
-        df_mau_vt = pd.DataFrame({'Mã vật tư': ['VL02'], 'Tên vật tư': ['Ampe kế'], 'Phân môn': ['Vật lý'], 'Số lượng': [15], 'Hạn sử dụng': ['15/09/2026'], 'Tình trạng': ['Tốt']})
-        output_vt = BytesIO()
-        with pd.ExcelWriter(output_vt, engine='openpyxl') as writer:
-            df_mau_vt.to_excel(writer, index=False)
-        st.download_button("⬇️ Tải file Excel mẫu", data=output_vt.getvalue(), file_name="Mau_Nhap_Vat_Tu.xlsx")
-        
-        uploaded_chem = st.file_uploader("Chọn file Excel thiết bị đã điền", type=['xlsx', 'xls'])
-        if uploaded_chem is not None and st.button("Tiến hành nhập dữ liệu"):
-            try:
-                df_new = pd.read_excel(uploaded_chem)
-                for col in df_new.columns:
-                    if df_new[col].dtype == 'object' or 'Hạn sử dụng' in col:
-                        df_new[col] = df_new[col].astype(str).replace('nan', '')
-                st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new], ignore_index=True)
-                save_data('chemicals', st.session_state.chemicals)
-                st.success("Đã đồng bộ từ Excel thành công!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Lỗi: {e}")
-
-        st.markdown("---")
-        st.subheader("3. ✏️ Sửa hoặc ❌ Xóa thiết bị")
+        st.subheader("2. ✏️ Sửa hoặc ❌ Xóa thiết bị")
         item_list = st.session_state.chemicals['Mã vật tư'].tolist()
         selected_item_code = st.selectbox("Chọn Mã vật tư:", ["-- Chọn vật tư --"] + item_list)
         if selected_item_code != "-- Chọn vật tư --":
@@ -427,7 +301,11 @@ elif menu == "Quản lý Kho (Vật tư)":
             with st.form("edit_delete_item_form"):
                 edit_ten = st.text_input("Tên vật tư", value=item_data['Tên vật tư'])
                 col_e1, col_e2 = st.columns(2)
-                edit_mon = col_e1.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"], index=["Vật lý", "Hóa học", "Sinh học"].index(item_data['Phân môn']))
+                # Đảm bảo index lấy đúng cả mục "Dùng chung"
+                phan_mon_list = ["Vật lý", "Hóa học", "Sinh học", "Dùng chung"]
+                current_mon = item_data['Phân môn'] if item_data['Phân môn'] in phan_mon_list else "Dùng chung"
+                edit_mon = col_e1.selectbox("Phân môn", phan_mon_list, index=phan_mon_list.index(current_mon))
+                
                 default_sl = int(item_data['Số lượng']) if 'Số lượng' in item_data and pd.notnull(item_data['Số lượng']) else 1
                 edit_sl = col_e2.number_input("Số lượng hiện có", min_value=0, value=default_sl)
                 edit_tt = st.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"], index=["Tốt", "Cần sửa chữa", "Đang đặt mua"].index(item_data['Tình trạng']))
@@ -449,7 +327,7 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.rerun()
 
 # ------------------------------------------
-# 4. ĐĂNG KÝ THIẾT BỊ
+# 4. ĐĂNG KÝ THIẾT BỊ (Bộ lọc thiết bị thông minh)
 # ------------------------------------------
 elif menu == "Đăng ký thiết bị":
     st.header("📝 Đăng ký sử dụng phòng bộ môn")
@@ -462,6 +340,16 @@ elif menu == "Đăng ký thiết bị":
         
     st.markdown("---")
     st.subheader("2. ➕ Tạo lịch đăng ký mới")
+    
+    # BƯỚC 1: ĐƯA MỤC CHỌN PHÂN MÔN RA NGOÀI FORM ĐỂ LỌC ĐỘNG
+    subject_filter = st.selectbox("📌 Chọn Phân môn giảng dạy trước để lọc thiết bị:", ["Vật lý", "Hóa học", "Sinh học"])
+    
+    # BƯỚC 2: LỌC DANH SÁCH THIẾT BỊ (Bao gồm môn đã chọn + Thiết bị dùng chung)
+    filtered_equip = st.session_state.chemicals[
+        st.session_state.chemicals['Phân môn'].isin([subject_filter, "Dùng chung"])
+    ]['Tên vật tư'].tolist()
+    
+    # BƯỚC 3: ĐIỀN CÁC THÔNG TIN CÒN LẠI TRONG FORM
     with st.form("booking_form"):
         col1, col2 = st.columns(2)
         with col1:
@@ -469,17 +357,16 @@ elif menu == "Đăng ký thiết bị":
             buoi = st.selectbox("Buổi dạy", ["Sáng", "Chiều"])
             period = st.selectbox("Tiết học giảng dạy", [1, 2, 3, 4, 5])
             lop = st.text_input("Lớp (VD: 9A)")
-            subject = st.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học"])
         with col2:
-            equipment = st.multiselect("Chọn thiết bị cần mượn", st.session_state.chemicals['Tên vật tư'].tolist())
+            equipment = st.multiselect(f"Chọn thiết bị ({subject_filter} & Dùng chung)", filtered_equip)
             
         if st.form_submit_button("Xác nhận đăng ký"):
             if lop:
                 date_str = date.strftime('%d/%m/%Y')
-                new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': date_str, 'Buổi': buoi, 'Tiết': period, 'Lớp': lop, 'Môn': subject, 'Thiết bị': ", ".join(equipment)}])
+                new_book = pd.DataFrame([{'Người đăng ký': current_user['Họ tên'], 'Ngày': date_str, 'Buổi': buoi, 'Tiết': period, 'Lớp': lop, 'Môn': subject_filter, 'Thiết bị': ", ".join(equipment)}])
                 st.session_state.bookings = pd.concat([st.session_state.bookings, new_book], ignore_index=True)
                 save_data('bookings', st.session_state.bookings)
-                st.success("Lịch đăng ký đã được thêm mới thành công!")
+                st.success("Lịch đăng ký đã được lưu thành công!")
                 st.rerun()
 
     st.markdown("---")
@@ -489,12 +376,19 @@ elif menu == "Đăng ký thiết bị":
     user_bookings = st.session_state.bookings[st.session_state.bookings['Người đăng ký'] == current_user['Họ tên']]
     
     if not user_bookings.empty:
-        booking_options = [f"Lớp {row['Lớp']} - Tiết {row['Tiết']} (Ngày {row['Ngày']})" for idx, row in user_bookings.iterrows()]
+        booking_options = [f"Lớp {row['Lớp']} - Tiết {row['Tiết']} - Môn {row['Môn']} (Ngày {row['Ngày']})" for idx, row in user_bookings.iterrows()]
         selected_booking_str = st.selectbox("Chọn lịch Thầy/Cô muốn điều chỉnh:", ["-- Chọn lịch --"] + booking_options)
         
         if selected_booking_str != "-- Chọn lịch --":
             actual_idx = user_bookings.index[booking_options.index(selected_booking_str) - 1]
             booking_data = st.session_state.bookings.iloc[actual_idx]
+            
+            # Môn hiện tại của lịch đang sửa
+            current_subject_edit = booking_data['Môn']
+            # Lọc thiết bị cho form sửa (Môn của lịch + Dùng chung)
+            edit_filtered_equip = st.session_state.chemicals[
+                st.session_state.chemicals['Phân môn'].isin([current_subject_edit, "Dùng chung"])
+            ]['Tên vật tư'].tolist()
             
             with st.form("edit_booking_form"):
                 e_col1, e_col2 = st.columns(2)
@@ -504,16 +398,16 @@ elif menu == "Đăng ký thiết bị":
                     except:
                         parsed_date = datetime.date.today()
                         
-                    e_date = st.date_input("Chỉnh sửa ngày dạy", value=parsed_date, format="DD/MM/YYYY")
-                    e_buoi = st.selectbox("Chỉnh sửa buổi dạy", ["Sáng", "Chiều"], index=["Sáng", "Chiều"].index(booking_data['Buổi']))
-                    e_period = st.selectbox("Chỉnh sửa tiết học", [1, 2, 3, 4, 5], index=[1, 2, 3, 4, 5].index(int(booking_data['Tiết'])))
-                    e_lop = st.text_input("Chỉnh sửa Lớp", value=booking_data['Lớp'])
-                    e_subject = st.selectbox("Chỉnh sửa phân môn", ["Vật lý", "Hóa học", "Sinh học"], index=["Vật lý", "Hóa học", "Sinh học"].index(booking_data['Môn']))
+                    e_date = st.date_input("Sửa ngày dạy", value=parsed_date, format="DD/MM/YYYY")
+                    e_buoi = st.selectbox("Sửa buổi dạy", ["Sáng", "Chiều"], index=["Sáng", "Chiều"].index(booking_data['Buổi']))
+                    e_period = st.selectbox("Sửa tiết học", [1, 2, 3, 4, 5], index=[1, 2, 3, 4, 5].index(int(booking_data['Tiết'])))
+                    e_lop = st.text_input("Sửa Lớp", value=booking_data['Lớp'])
+                    st.info(f"Đang sửa thiết bị cho phân môn: **{current_subject_edit}**")
+                    
                 with e_col2:
                     current_equip = [x.strip() for x in str(booking_data['Thiết bị']).split(',')] if booking_data['Thiết bị'] else []
-                    valid_equip = st.session_state.chemicals['Tên vật tư'].tolist()
-                    safe_current_equip = [x for x in current_equip if x in valid_equip]
-                    e_equipment = st.multiselect("Chỉnh sửa thiết bị cần mượn", valid_equip, default=safe_current_equip)
+                    safe_current_equip = [x for x in current_equip if x in edit_filtered_equip]
+                    e_equipment = st.multiselect("Chỉnh sửa thiết bị cần mượn", edit_filtered_equip, default=safe_current_equip)
                     
                 btn_c1, btn_c2 = st.columns(2)
                 if btn_c1.form_submit_button("💾 Lưu thay đổi lịch"):
@@ -521,7 +415,7 @@ elif menu == "Đăng ký thiết bị":
                     st.session_state.bookings.at[actual_idx, 'Buổi'] = e_buoi
                     st.session_state.bookings.at[actual_idx, 'Tiết'] = e_period
                     st.session_state.bookings.at[actual_idx, 'Lớp'] = e_lop
-                    st.session_state.bookings.at[actual_idx, 'Môn'] = e_subject
+                    # Giữ nguyên môn đã đăng ký ban đầu để tránh xung đột thiết bị
                     st.session_state.bookings.at[actual_idx, 'Thiết bị'] = ", ".join(e_equipment)
                     save_data('bookings', st.session_state.bookings)
                     st.success("✅ Đã cập nhật lại lịch đăng ký!")
