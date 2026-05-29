@@ -417,11 +417,11 @@ elif menu == "Quản lý Kho (Vật tư)":
                 st.rerun()
             else:
                 st.warning("⚠️ Vui lòng chọn ít nhất một vật tư để thực hiện lệnh xóa.")
-                    st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
+                st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
                     # GỌI LỆNH LƯU LÊN GOOGLE SHEETS
-                    save_data('chemicals', st.session_state.chemicals)
-                    st.success("✅ Đã xóa thiết bị khỏi hệ thống đám mây!")
-                    st.rerun()
+                save_data('chemicals', st.session_state.chemicals)
+                st.success("✅ Đã xóa thiết bị khỏi hệ thống đám mây!")
+                st.rerun()
 
 # ==========================================
 # 4. ĐĂNG KÝ THIẾT BỊ 
