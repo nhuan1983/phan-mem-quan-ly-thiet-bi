@@ -37,6 +37,35 @@ if "gspread_creds" in st.secrets and "spreadsheet_key" in st.secrets:
         USE_CLOUD_DB = True
     except Exception as e:
         st.sidebar.error(f"⚠️ Lỗi kết nối Google Sheets: {e}")
+# Cập nhật phần cấu hình giao diện CSS
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            
+            /* Tạo dải thông báo nhắc nhở ở trên cùng cho điện thoại */
+            .mobile-hint {
+                background-color: #1E88E5;
+                color: white;
+                padding: 10px;
+                text-align: center;
+                font-size: 14px;
+                display: none;
+            }
+            
+            /* Chỉ hiển thị trên màn hình nhỏ (điện thoại) */
+            @media only screen and (max-width: 600px) {
+                .mobile-hint {
+                    display: block;
+                }
+            }
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# Hiển thị thông báo nhắc nhở
+st.markdown('<div class="mobile-hint">📱 Nhấn vào dấu 3 gạch (góc trái) để mở menu chức năng</div>', unsafe_allow_html=True)
 
 # --- CÁC HÀM ĐỌC/GHI DỮ LIỆU THÔNG MINH ---
 def load_data(sheet_name, default_df):
