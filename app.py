@@ -113,7 +113,7 @@ if not st.session_state.logged_in:
     tk = st.text_input("Tài khoản")
     mk = st.text_input("Mật khẩu", type="password")
     if st.button("Đăng nhập"):
-        user_match = st.session_state.users[(st.session_state.users['Tài khoản'] == tk) & (st.session_state.users['Mật khẩu'] == mk)]
+        user_match = st.session_state.users[(st.session_state.users['Tài khoản'].astype(str) == str(tk)) & (st.session_state.users['Mật khẩu'].astype(str) == str(mk))]
         if not user_match.empty:
             st.session_state.logged_in = True
             st.session_state.current_user = user_match.iloc[0].to_dict()
