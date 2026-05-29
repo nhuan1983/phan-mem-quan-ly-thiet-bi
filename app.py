@@ -392,6 +392,31 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.success("✅ Đã lưu cập nhật lên đám mây!")
                     st.rerun()
                 if ic_col2.form_submit_button("❌ XÓA THIẾT BỊ NÀY"):
+                    st.markdown("---")
+        st.subheader("4. 🗑️ Xóa hàng loạt thiết bị/vật tư")
+        st.info("💡 Tính năng này giúp thanh lý nhanh chóng nhiều hóa chất, vật tư đã hết hạn hoặc hư hỏng cùng lúc.")
+        
+        # 1. Tạo danh sách hiển thị gồm [Mã vật tư] - [Tên vật tư] - [Tình trạng] để dễ chọn
+        item_options = [f"{row['Mã vật tư']} - {row['Tên vật tư']} ({row['Tình trạng']})" for idx, row in st.session_state.chemicals.iterrows()]
+        
+        # 2. Sử dụng multiselect để cho phép chọn nhiều thiết bị
+        items_to_delete = st.multiselect("Chọn các vật tư cần thanh lý/xóa:", item_options)
+        
+        if st.button("❌ Xác nhận xóa hàng loạt", type="primary"):
+            if items_to_delete:
+                # 3. Tách lấy phần 'Mã vật tư' từ chuỗi văn bản đã chọn
+                ma_vt_to_delete = [item.split(" - ")[0] for item in items_to_delete]
+                
+                # 4. Cập nhật lại kho (giữ lại những vật tư KHÔNG nằm trong danh sách cần xóa)
+                st.session_state.chemicals = st.session_state.chemicals[~st.session_state.chemicals['Mã vật tư'].isin(ma_vt_to_delete)].reset_index(drop=True)
+                
+                # 5. Gọi lệnh đồng bộ lên Google Sheets đám mây
+                save_data('chemicals', st.session_state.chemicals)
+                
+                st.success(f"✅ Đã xóa thành công {len(ma_vt_to_delete)} thiết bị khỏi hệ thống đám mây!")
+                st.rerun()
+            else:
+                st.warning("⚠️ Vui lòng chọn ít nhất một vật tư để thực hiện lệnh xóa.")
                     st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
                     # GỌI LỆNH LƯU LÊN GOOGLE SHEETS
                     save_data('chemicals', st.session_state.chemicals)
