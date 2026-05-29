@@ -353,13 +353,22 @@ elif menu == "Quản lý Kho (Vật tư)":
             tinh_trang = c7.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
             
             if st.form_submit_button("Lưu vào kho"):
-                if ma_vt and ten_vt:
-                    han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
-                    new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Hạn sử dụng': han_str, 'Tình trạng': tinh_trang}])
-                    st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
-                    save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã bổ sung thiết bị vào kho!")
-                    st.rerun()
+            if ma_vt and ten_vt and don_vi:
+                han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
+                new_item = pd.DataFrame([{
+                    'Mã vật tư': ma_vt, 
+                    'Tên vật tư': ten_vt, 
+                    'Phân môn': phan_mon, 
+                    'Số lượng': int(so_luong), 
+                    'Đơn vị': don_vi, # Đã bổ sung
+                    'Hạn sử dụng': han_str, 
+                    'Tình trạng': tinh_trang
+                }])
+                st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
+                # LỆNH GỌI LƯU LÊN CLOUD
+                save_data('chemicals', st.session_state.chemicals)
+                st.success("✅ Đã bổ sung và đồng bộ lên kho đám mây!")
+                st.rerun()
 
         st.markdown("---")
         st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
@@ -411,9 +420,9 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.success("Đã lưu cập nhật!")
                     st.rerun()
                 if ic_col2.form_submit_button("❌ XÓA THIẾT BỊ NÀY"):
-                    st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
-                    save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã xóa thiết bị!")
+                    st.session_state.chemicals.at[idx, 'Đơn vị'] = don_vi # Cập nhật cột mới
+                    save_data('chemicals', st.session_state.chemicals) # LỆNH GỌI LƯU
+                    st.success("Đã lưu cập nhật lên đám mây!")
                     st.rerun()
 
 # ------------------------------------------
