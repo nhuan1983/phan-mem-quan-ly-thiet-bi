@@ -333,71 +333,88 @@ elif menu == "Trang chủ & Cảnh báo":
 # ------------------------------------------
 # 3. QUẢN LÝ KHO (VẬT TƯ)
 # ------------------------------------------
-if menu == "Quản lý Kho Thiết bị":
-    st.header("Danh mục Thiết bị / Vật tư")
-    
-    # Hiển thị bảng dữ liệu
+elif menu == "Quản lý Kho (Vật tư)":
+    st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
     st.dataframe(st.session_state.chemicals, use_container_width=True)
     
-    # Nút xuất Excel
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        st.session_state.chemicals.to_excel(writer, index=False)
-    st.download_button(
-        label="Tải danh sách về máy (.xlsx)",
-        data=output.getvalue(),
-        file_name="Danh_muc_thiet_bi.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    
-    st.markdown("---")
-    
-    # Form thêm thiết bị mới
-    st.subheader("Thêm thiết bị mới vào kho")
-    with st.form("add_item_form"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            ma_vt = st.text_input("Mã vật tư")
-            ten_vt = st.text_input("Tên vật tư")
-        with col2:
-            phan_mon = st.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học", "Dùng chung"])
-            so_luong = st.number_input("Số lượng", min_value=1, step=1)
-        with col3:
-            don_vi = st.text_input("Đơn vị (cái, bộ, ml, gam...)") # Ô nhập đơn vị
-            han_su_dung = st.date_input("Hạn sử dụng", value=None)
-        
-        tinh_trang = st.selectbox("Tình trạng", ["Tốt", "Sắp hết hạn", "Hỏng", "Cần thanh lý"])
-        
-        if st.form_submit_button("Lưu vào kho"):
-            if ma_vt and ten_vt and don_vi:
-                han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
-                # BỔ SUNG CỘT ĐƠN VỊ VÀO CHUỖI LƯU THỦ CÔNG
-                new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Đơn vị': don_vi, 'Hạn sử dụng': han_str, 'Tình trạng': tinh_trang}])
-                st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
-                
-                # Lưu đồng bộ lên Google Sheets
-                save_data('chemicals', st.session_state.chemicals)
-                st.success("Đã bổ sung thiết bị vào kho!")
-                st.rerun()
-            else:
-                st.warning("Vui lòng nhập đủ Mã vật tư, Tên vật tư và Đơn vị!")
-    
-    st.markdown("---")
-    
-    # Form tải lên hàng loạt từ Excel
-    st.subheader("Nhập hàng loạt từ file Excel")
-    uploaded_chem = st.file_uploader("Chọn file Excel (đảm bảo cấu trúc 7 cột gồm cả Đơn vị)", type=['xlsx', 'xls'])
-    if uploaded_chem is not None and st.button("Tiến hành nhập dữ liệu thiết bị"):
-        try:
-            df_new = pd.read_excel(uploaded_chem)
-            st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new], ignore_index=True)
+    if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
+        st.markdown("---")
+        st.subheader("1. ➕ Bổ sung vật tư mới")
+        with st.form("add_chem_form"):
+            c1, c2, c3, c4 = st.columns(4)
+            ma_vt = c1.text_input("Mã vật tư")
+            ten_vt = c2.text_input("Tên vật tư")
+            phan_mon = c3.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học", "Dùng chung"])
+            Đơn vị = ['ml', 'gam', 'bộ', 'cái', 'cái'],
+            so_luong = c4.number_input("Số lượng", min_value=1, value=1)
             
-            # ĐÃ CHÈN LỆNH LƯU LÊN CLOUD
-            save_data('chemicals', st.session_state.chemicals)
-            st.success("Nhập thành công danh mục thiết bị hàng loạt!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Lỗi đọc file: {e}")
+            c5, c6 = st.columns(2)
+            han_su_dung = c5.date_input("Hạn sử dụng", value=None, format="DD/MM/YYYY")
+            tinh_trang = c6.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
+            
+            if st.form_submit_button("Lưu vào kho"):
+                if ma_vt and ten_vt:
+                    han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
+                    new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Hạn sử dụng': han_str, 'Tình trạng': tinh_trang}])
+                    st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
+                    save_data('chemicals', st.session_state.chemicals)
+                    st.success("Đã bổ sung thiết bị vào kho!")
+                    st.rerun()
+
+        st.markdown("---")
+        st.subheader("2. 📥 Nhập hàng loạt vật tư từ file Excel")
+        df_mau_vt = pd.DataFrame({'Mã vật tư': ['VL02'], 'Tên vật tư': ['Ampe kế'], 'Phân môn': ['Vật lý'], 'Số lượng': [15], 'Hạn sử dụng': ['15/09/2026'], 'Tình trạng': ['Tốt']})
+        output_vt = BytesIO()
+        with pd.ExcelWriter(output_vt, engine='openpyxl') as writer:
+            df_mau_vt.to_excel(writer, index=False)
+        st.download_button("⬇️ Tải file Excel mẫu", data=output_vt.getvalue(), file_name="Mau_Nhap_Vat_Tu.xlsx")
+        
+        uploaded_chem = st.file_uploader("Chọn file Excel thiết bị đã điền", type=['xlsx', 'xls'])
+        if uploaded_chem is not None and st.button("Tiến hành nhập dữ liệu"):
+            try:
+                df_new = pd.read_excel(uploaded_chem)
+                for col in df_new.columns:
+                    if df_new[col].dtype == 'object' or 'Hạn sử dụng' in col:
+                        df_new[col] = df_new[col].astype(str).replace('nan', '')
+                st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new], ignore_index=True)
+                save_data('chemicals', st.session_state.chemicals)
+                st.success("Đã đồng bộ từ Excel thành công!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Lỗi: {e}")
+
+        st.markdown("---")
+        st.subheader("3. ✏️ Sửa hoặc ❌ Xóa thiết bị")
+        item_list = st.session_state.chemicals['Mã vật tư'].tolist()
+        selected_item_code = st.selectbox("Chọn Mã vật tư:", ["-- Chọn vật tư --"] + item_list)
+        if selected_item_code != "-- Chọn vật tư --":
+            item_data = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] == selected_item_code].iloc[0]
+            with st.form("edit_delete_item_form"):
+                edit_ten = st.text_input("Tên vật tư", value=item_data['Tên vật tư'])
+                col_e1, col_e2 = st.columns(2)
+                phan_mon_list = ["Vật lý", "Hóa học", "Sinh học", "Dùng chung"]
+                current_mon = item_data['Phân môn'] if item_data['Phân môn'] in phan_mon_list else "Dùng chung"
+                edit_mon = col_e1.selectbox("Phân môn", phan_mon_list, index=phan_mon_list.index(current_mon))
+                
+                default_sl = int(item_data['Số lượng']) if 'Số lượng' in item_data and pd.notnull(item_data['Số lượng']) else 1
+                edit_sl = col_e2.number_input("Số lượng hiện có", min_value=0, value=default_sl)
+                edit_tt = st.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"], index=["Tốt", "Cần sửa chữa", "Đang đặt mua"].index(item_data['Tình trạng']))
+                
+                ic_col1, ic_col2 = st.columns(2)
+                if ic_col1.form_submit_button("💾 Lưu thay đổi"):
+                    idx = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] == selected_item_code].index[0]
+                    st.session_state.chemicals.at[idx, 'Tên vật tư'] = edit_ten
+                    st.session_state.chemicals.at[idx, 'Phân môn'] = edit_mon
+                    st.session_state.chemicals.at[idx, 'Số lượng'] = int(edit_sl)
+                    st.session_state.chemicals.at[idx, 'Tình trạng'] = edit_tt
+                    save_data('chemicals', st.session_state.chemicals)
+                    st.success("Đã lưu cập nhật!")
+                    st.rerun()
+                if ic_col2.form_submit_button("❌ XÓA THIẾT BỊ NÀY"):
+                    st.session_state.chemicals = st.session_state.chemicals[st.session_state.chemicals['Mã vật tư'] != selected_item_code].reset_index(drop=True)
+                    save_data('chemicals', st.session_state.chemicals)
+                    st.success("Đã xóa thiết bị!")
+                    st.rerun()
 
 # ------------------------------------------
 # 4. ĐĂNG KÝ THIẾT BỊ (Đã gỡ Form để tương tác động y như hình ảnh)
