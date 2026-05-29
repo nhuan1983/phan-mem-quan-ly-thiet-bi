@@ -333,33 +333,71 @@ elif menu == "Trang chủ & Cảnh báo":
 # ------------------------------------------
 # 3. QUẢN LÝ KHO (VẬT TƯ)
 # ------------------------------------------
-elif menu == "Quản lý Kho (Vật tư)":
-    st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
+if menu == "Quản lý Kho Thiết bị":
+    st.header("Danh mục Thiết bị / Vật tư")
+    
+    # Hiển thị bảng dữ liệu
     st.dataframe(st.session_state.chemicals, use_container_width=True)
     
-    if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
-        st.markdown("---")
-        st.subheader("1. ➕ Bổ sung vật tư mới")
-        with st.form("add_chem_form"):
-            c1, c2, c3, c4, c5 = st.columns(5)
-            ma_vt = c1.text_input("Mã vật tư")
-            ten_vt = c2.text_input("Tên vật tư")
-            phan_mon = c3.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học", "Dùng chung"])
-            don_vi = c4.selectbox("Đơn vị", ["cái", "bộ", "gam", "ml", "gói"])
-            so_luong = c5.number_input("Số lượng", min_value=1, value=1)
+    # Nút xuất Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        st.session_state.chemicals.to_excel(writer, index=False)
+    st.download_button(
+        label="Tải danh sách về máy (.xlsx)",
+        data=output.getvalue(),
+        file_name="Danh_muc_thiet_bi.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
+    st.markdown("---")
+    
+    # Form thêm thiết bị mới
+    st.subheader("Thêm thiết bị mới vào kho")
+    with st.form("add_item_form"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            ma_vt = st.text_input("Mã vật tư")
+            ten_vt = st.text_input("Tên vật tư")
+        with col2:
+            phan_mon = st.selectbox("Phân môn", ["Vật lý", "Hóa học", "Sinh học", "Dùng chung"])
+            so_luong = st.number_input("Số lượng", min_value=1, step=1)
+        with col3:
+            don_vi = st.text_input("Đơn vị (cái, bộ, ml, gam...)") # Ô nhập đơn vị
+            han_su_dung = st.date_input("Hạn sử dụng", value=None)
+        
+        tinh_trang = st.selectbox("Tình trạng", ["Tốt", "Sắp hết hạn", "Hỏng", "Cần thanh lý"])
+        
+        if st.form_submit_button("Lưu vào kho"):
+            if ma_vt and ten_vt and don_vi:
+                han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
+                # BỔ SUNG CỘT ĐƠN VỊ VÀO CHUỖI LƯU THỦ CÔNG
+                new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Đơn vị': don_vi, 'Hạn sử dụng': han_str, 'Tình trạng': tinh_trang}])
+                st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
+                
+                # Lưu đồng bộ lên Google Sheets
+                save_data('chemicals', st.session_state.chemicals)
+                st.success("Đã bổ sung thiết bị vào kho!")
+                st.rerun()
+            else:
+                st.warning("Vui lòng nhập đủ Mã vật tư, Tên vật tư và Đơn vị!")
+    
+    st.markdown("---")
+    
+    # Form tải lên hàng loạt từ Excel
+    st.subheader("Nhập hàng loạt từ file Excel")
+    uploaded_chem = st.file_uploader("Chọn file Excel (đảm bảo cấu trúc 7 cột gồm cả Đơn vị)", type=['xlsx', 'xls'])
+    if uploaded_chem is not None and st.button("Tiến hành nhập dữ liệu thiết bị"):
+        try:
+            df_new = pd.read_excel(uploaded_chem)
+            st.session_state.chemicals = pd.concat([st.session_state.chemicals, df_new], ignore_index=True)
             
-            c6, c7 = st.columns(2)
-            han_su_dung = c6.date_input("Hạn sử dụng", value=None, format="DD/MM/YYYY")
-            tinh_trang = c7.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
-            
-            if st.form_submit_button("Lưu vào kho"):
-                if ma_vt and ten_vt:
-                    han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
-                    new_item = pd.DataFrame([{'Mã vật tư': ma_vt, 'Tên vật tư': ten_vt, 'Phân môn': phan_mon, 'Số lượng': int(so_luong), 'Đơn vị': don_vi, 'Hạn sử dụng': han_str, 'Tình trạng': tinh_trang}])
-                    st.session_state.chemicals = pd.concat([st.session_state.chemicals, new_item], ignore_index=True)
-                    save_data('chemicals', st.session_state.chemicals)
-                    st.success("Đã bổ sung thiết bị vào kho!")
-                    st.rerun()
+            # ĐÃ CHÈN LỆNH LƯU LÊN CLOUD
+            save_data('chemicals', st.session_state.chemicals)
+            st.success("Nhập thành công danh mục thiết bị hàng loạt!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Lỗi đọc file: {e}")
 
 # ------------------------------------------
 # 4. ĐĂNG KÝ THIẾT BỊ (Đã gỡ Form để tương tác động y như hình ảnh)
