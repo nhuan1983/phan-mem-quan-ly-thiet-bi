@@ -352,8 +352,8 @@ elif menu == "Quản lý Kho (Vật tư)":
             han_su_dung = c6.date_input("Hạn sử dụng", value=None, format="DD/MM/YYYY")
             tinh_trang = c7.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
             
-            if st.form_submit_button("Lưu vào kho"):
-            if ma_vt and ten_vt and don_vi:
+if st.form_submit_button("Lưu vào kho"):
+if ma_vt and ten_vt and don_vi:
                 han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
                 new_item = pd.DataFrame([{
                     'Mã vật tư': ma_vt, 
