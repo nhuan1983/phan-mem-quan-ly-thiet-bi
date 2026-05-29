@@ -338,14 +338,14 @@ elif menu == "Quản lý Kho (Vật tư)":
 # Thêm nút sao lưu toàn bộ kho về máy
 st.markdown("---")
 st.subheader("💾 Sao lưu dữ liệu kho")
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            st.session_state.chemicals.to_excel(writer, index=False)
-        st.download_button(label="⬇️ Tải toàn bộ danh mục kho về máy (Để lưu trữ)",
-            data=output.getvalue(),
-            file_name="Du_lieu_Kho_Backup.xlsx",
-            mime="application/vnd.ms-excel")
-        st.info("💡 Mẹo: Trước khi tắt trình duyệt, thầy hãy nhấn nút này để lưu dữ liệu. Khi mở lại phần mềm, thầy dùng file này tải lên ở mục 'Nhập hàng loạt' để khôi phục trạng thái cũ.")
+output = BytesIO()
+with pd.ExcelWriter(output, engine='openpyxl') as writer:
+st.session_state.chemicals.to_excel(writer, index=False)
+st.download_button(label="⬇️ Tải toàn bộ danh mục kho về máy (Để lưu trữ)",
+data=output.getvalue(),
+file_name="Du_lieu_Kho_Backup.xlsx",
+mime="application/vnd.ms-excel")
+st.info("💡 Mẹo: Trước khi tắt trình duyệt, thầy hãy nhấn nút này để lưu dữ liệu. Khi mở lại phần mềm, thầy dùng file này tải lên ở mục 'Nhập hàng loạt' để khôi phục trạng thái cũ.")
             
     if active_role in ["Quản trị viên", "Hiệu trưởng", "Phó Hiệu trưởng", "Tổ trưởng chuyên môn"]:
         st.markdown("---")
