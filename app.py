@@ -336,7 +336,7 @@ elif menu == "Quản lý Kho (Vật tư)":
     st.header("📦 Quản lý Kho Thiết bị & Hóa chất")
     st.dataframe(st.session_state.chemicals, use_container_width=True)
 # Thêm nút sao lưu toàn bộ kho về máy
-        st.markdown("---")
+st.markdown("---")
         st.subheader("💾 Sao lưu dữ liệu kho")
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
