@@ -353,7 +353,7 @@ elif menu == "Quản lý Kho (Vật tư)":
             tinh_trang = c7.selectbox("Tình trạng", ["Tốt", "Cần sửa chữa", "Đang đặt mua"])
             
 if st.form_submit_button("Lưu vào kho"):
-if ma_vt and ten_vt and don_vi:
+            if ma_vt and ten_vt and don_vi:
                 han_str = han_su_dung.strftime('%d/%m/%Y') if han_su_dung else ""
                 new_item = pd.DataFrame([{
                     'Mã vật tư': ma_vt, 
