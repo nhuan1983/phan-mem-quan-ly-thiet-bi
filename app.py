@@ -340,7 +340,7 @@ st.markdown("---")
 st.subheader("💾 Sao lưu dữ liệu kho")
 output = BytesIO()
 with pd.ExcelWriter(output, engine='openpyxl') as writer:
-st.session_state.chemicals.to_excel(writer, index=False)
+            st.session_state.chemicals.to_excel(writer, index=False)
 st.download_button(label="⬇️ Tải toàn bộ danh mục kho về máy (Để lưu trữ)",
 data=output.getvalue(),
 file_name="Du_lieu_Kho_Backup.xlsx",
