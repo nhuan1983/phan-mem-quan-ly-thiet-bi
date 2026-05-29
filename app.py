@@ -7,20 +7,44 @@ from io import BytesIO
 import plotly.express as px
 
 # ==========================================
-# CẤU HÌNH KẾT NỐI GOOGLE SHEETS VÀ ẨN GIAO DIỆN
+# CẤU HÌNH GIAO DIỆN & TỐI ƯU HÓA MOBILE
 # ==========================================
 st.set_page_config(page_title="Hệ thống Quản lý KHTN", layout="wide")
 
-# CSS Ẩn thanh công cụ mặc định của Streamlit
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
+            
+            /* Tạo dải thông báo nhắc nhở ở trên cùng cho điện thoại */
+            .mobile-hint {
+                background-color: #1E88E5;
+                color: white;
+                padding: 10px;
+                text-align: center;
+                font-size: 14px;
+                margin-bottom: 15px;
+                border-radius: 5px;
+                display: none;
+            }
+            
+            /* Chỉ hiển thị dải màu này trên màn hình nhỏ (điện thoại) */
+            @media only screen and (max-width: 600px) {
+                .mobile-hint {
+                    display: block;
+                }
+            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
+# Hiển thị thông báo nhắc nhở mở menu cho người dùng điện thoại
+st.markdown('<div class="mobile-hint">📱 Nhấn vào biểu tượng <b>></b> hoặc <b>☰</b> (góc trái) để mở menu chức năng</div>', unsafe_allow_html=True)
+
+# ==========================================
+# CẤU HÌNH KẾT NỐI GOOGLE SHEETS
+# ==========================================
 USE_CLOUD_DB = False
 conn = None
 sh = None
@@ -37,35 +61,6 @@ if "gspread_creds" in st.secrets and "spreadsheet_key" in st.secrets:
         USE_CLOUD_DB = True
     except Exception as e:
         st.sidebar.error(f"⚠️ Lỗi kết nối Google Sheets: {e}")
-# Cập nhật phần cấu hình giao diện CSS
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            
-            /* Tạo dải thông báo nhắc nhở ở trên cùng cho điện thoại */
-            .mobile-hint {
-                background-color: #1E88E5;
-                color: white;
-                padding: 10px;
-                text-align: center;
-                font-size: 14px;
-                display: none;
-            }
-            
-            /* Chỉ hiển thị trên màn hình nhỏ (điện thoại) */
-            @media only screen and (max-width: 600px) {
-                .mobile-hint {
-                    display: block;
-                }
-            }
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
-# Hiển thị thông báo nhắc nhở
-st.markdown('<div class="mobile-hint">📱 Nhấn vào dấu 3 gạch (góc trái) để mở menu chức năng</div>', unsafe_allow_html=True)
 
 # --- CÁC HÀM ĐỌC/GHI DỮ LIỆU THÔNG MINH ---
 def load_data(sheet_name, default_df):
@@ -215,7 +210,7 @@ if menu == "Quản lý Hệ thống (Admin)":
         
     st.header("⚙️ Quản lý Hệ thống & Cấu hình Đơn vị")
     
-    st.subheader("1. 🏫 Cấu hình thông Trường học")
+    st.subheader("1. 🏫 Cấu hình thông tin Trường học")
     with st.form("school_config_form"):
         sc_col1, sc_col2, sc_col3 = st.columns(3)
         edit_ten_truong = sc_col1.text_input("Tên trường", value=st.session_state.school_info['ten_truong'])
@@ -303,6 +298,16 @@ if menu == "Quản lý Hệ thống (Admin)":
                     save_data('users', st.session_state.users)
                     st.success("Đã xóa!")
                     st.rerun()
+
+    st.markdown("---")
+    st.subheader("6. 📊 Ma trận phân quyền Menu Hệ thống")
+    df_quyen = pd.DataFrame([
+        {"Menu": "Quản lý Hệ thống (Admin)", "Quản trị viên": "✅", "Ban Giám hiệu": "❌", "Tổ trưởng": "❌", "Giáo viên": "❌"},
+        {"Menu": "Trang chủ, Kho, Đăng ký thiết bị, Đổi Mật khẩu", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "✅"},
+        {"Menu": "Thêm/Sửa/Xóa Thiết bị (Kho)", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "❌"},
+        {"Menu": "Đánh giá, Xuất báo cáo", "Quản trị viên": "✅", "Ban Giám hiệu": "✅", "Tổ trưởng": "✅", "Giáo viên": "❌"}
+    ])
+    st.table(df_quyen)
 
 # ------------------------------------------
 # 2. TRANG CHỦ & CẢNH BÁO
@@ -444,7 +449,7 @@ elif menu == "Quản lý Kho (Vật tư)":
                     st.rerun()
 
 # ------------------------------------------
-# 4. ĐĂNG KÝ THIẾT BỊ (Đã thêm tính năng Sửa/Xóa lịch)
+# 4. ĐĂNG KÝ THIẾT BỊ
 # ------------------------------------------
 elif menu == "Đăng ký thiết bị":
     st.header("📝 Đăng ký sử dụng phòng bộ môn")
@@ -479,25 +484,21 @@ elif menu == "Đăng ký thiết bị":
 
     st.markdown("---")
     st.subheader("3. ✏️ Quản lý lịch cá nhân (Sửa hoặc Hủy lịch)")
-    st.info("Giáo viên chỉ có thể xem và điều chỉnh các lịch đăng ký do chính mình tạo ra để đảm bảo tính riêng tư và bảo mật.")
+    st.info("Giáo viên chỉ có thể xem và điều chỉnh các lịch đăng ký do chính mình tạo ra.")
     
-    # Lọc ra danh sách các lịch do người dùng hiện tại đang đăng nhập tạo ra
     user_bookings = st.session_state.bookings[st.session_state.bookings['Người đăng ký'] == current_user['Họ tên']]
     
     if not user_bookings.empty:
-        # Tạo danh sách các tùy chọn hiển thị trên Dropdown cho dễ nhìn
         booking_options = [f"Lớp {row['Lớp']} - Tiết {row['Tiết']} (Ngày {row['Ngày']})" for idx, row in user_bookings.iterrows()]
         selected_booking_str = st.selectbox("Chọn lịch Thầy/Cô muốn điều chỉnh:", ["-- Chọn lịch --"] + booking_options)
         
         if selected_booking_str != "-- Chọn lịch --":
-            # Ánh xạ ngược lại để tìm dòng dữ liệu thực tế (index) trong bảng chung
             actual_idx = user_bookings.index[booking_options.index(selected_booking_str) - 1]
             booking_data = st.session_state.bookings.iloc[actual_idx]
             
             with st.form("edit_booking_form"):
                 e_col1, e_col2 = st.columns(2)
                 with e_col1:
-                    # Bắt lỗi an toàn khi chuyển đổi ngày tháng (Phòng trường hợp dữ liệu cũ bị sai định dạng)
                     try:
                         parsed_date = pd.to_datetime(booking_data['Ngày'], dayfirst=True).date()
                     except:
@@ -509,10 +510,8 @@ elif menu == "Đăng ký thiết bị":
                     e_lop = st.text_input("Chỉnh sửa Lớp", value=booking_data['Lớp'])
                     e_subject = st.selectbox("Chỉnh sửa phân môn", ["Vật lý", "Hóa học", "Sinh học"], index=["Vật lý", "Hóa học", "Sinh học"].index(booking_data['Môn']))
                 with e_col2:
-                    # Đọc lại danh sách thiết bị đã chọn cũ
                     current_equip = [x.strip() for x in str(booking_data['Thiết bị']).split(',')] if booking_data['Thiết bị'] else []
                     valid_equip = st.session_state.chemicals['Tên vật tư'].tolist()
-                    # Loại bỏ những thiết bị cũ không còn tồn tại trong kho (tránh lỗi ngầm)
                     safe_current_equip = [x for x in current_equip if x in valid_equip]
                     e_equipment = st.multiselect("Chỉnh sửa thiết bị cần mượn", valid_equip, default=safe_current_equip)
                     
